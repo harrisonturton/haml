@@ -9,9 +9,17 @@
 	"repository": {
 		"statements": {
 			"patterns": [
+				{ "include": "#spec" },
 				{ "include": "#declaration" },
 				{ "include": "#comment" }
 			]
+		},
+		"spec": {
+			"match": "\\b(spec)\\b\\s+(\"[^\"]*\")",
+			"captures": {
+				"1": { "name": "keyword" },
+				"2": { "name": "string.quoted.double" }
+			}
 		},
 		"declaration": {
 			"patterns": [
@@ -31,7 +39,8 @@
 						}
 					},
 					"patterns": [
-						{ "include": "#property-declaration" }
+						{ "include": "#property-declaration" },
+						{ "include": "#function-declaration" }
 					]	
 				}
 			]
@@ -53,7 +62,7 @@
 				}
 			]
 		},
-		"user-property-declaration": {
+		"form-property-declaration": {
 			"patterns": [
 				{ "include": "#comment" },
 				{
@@ -70,6 +79,17 @@
 				}
 			]
 		},
+		"function-declaration": {
+			"begin": "([A-z]+)\\((\"[^\"]*\")?\\)\\s+\\{",
+			"end": "\\}",
+			"beginCaptures": {
+				"1": { "name": "entity.name.function" },
+				"2": { "name": "string.quoted.double" }
+			},
+			"patterns": [
+				{ "include": "#form-property-declaration" }
+			]
+		},
 		"expression": {
 			"patterns": [
 				{
@@ -80,12 +100,16 @@
 						"1": { "name": "keyword" }
 					},
 					"patterns": [
-						{ "include": "#user-property-declaration" }
+						{ "include": "#form-property-declaration" }
 					]
 				},
 				{
 					"name": "entity.name.type",
 					"match": "\\b(string|number|boolean|object|struct)\\b"
+				},
+				{
+					"name": "string.quoted.double",
+					"match": "(\"[^\"]*\")"
 				},
 				{ "include": "#identifier" }
 			]
