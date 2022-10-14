@@ -1,0 +1,26 @@
+spec "~/api.haml.spec"
+
+message CreateProfileRequest {
+    name: string
+    email: string
+}
+
+message CreateProfileResponse {
+    id: number 
+    name: string
+    email: string
+    created_at: string
+    updated_at: string
+}
+
+service ProfileService {
+    /**
+     * Create profile
+     *
+     * Long description
+     */
+    post("/profile/create") {
+        request: CreateProfileRequest,
+        response: CreateProfileResponse,
+    }
+}
