@@ -1,0 +1,13 @@
+spec "~/api.haml.spec";
+
+api ProfileService {
+    /**
+     * Short description
+     *
+     * Long description
+     */
+    post("/create") {
+        request: CreateProfileRequest,
+        response: CreateProfileResponse,
+    }
+}
