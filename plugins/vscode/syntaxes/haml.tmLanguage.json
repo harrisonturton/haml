@@ -24,6 +24,30 @@
 		"declaration": {
 			"patterns": [
 				{
+					"name": "enum.haml",
+					"begin": "\\b(enum)\\b\\s+([A-z]*)\\s*\\{",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword"
+						},
+						"2": {
+							"name": "entity.name.class"
+						}
+					},
+					"end": "\\}",
+					"patterns": [
+						{
+							"name": "enum.name.haml",
+							"match": "([a-z_]*)\n",
+							"captures": {
+								"1": {
+									"name": "entity.name.function"
+								}
+							}
+						}
+					]
+				},
+				{
 					"name": "declaration.haml",
 					"begin": "([a-z]+)\\s+((\"[a-z]+\")|([A-z]*))\\s*{",
 					"end": "\\}",
