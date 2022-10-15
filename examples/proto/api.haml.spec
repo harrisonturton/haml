@@ -5,7 +5,7 @@
  */
 
 rule "message" {
-    fields: MessageField[]
+    fields: MessageField[],
 }
 
 field MessageField {
@@ -24,22 +24,22 @@ rule "service" {
         /**
          * GET request. The request body must not be specified.
          */
-        get?: ServiceMethod
+        get?: ServiceMethod,
 
         /**
          * POST request.
          */
-        post?: ServiceMethod
+        post?: ServiceMethod,
 
         /**
          * UPDATE request.
          */
-        update?: ServiceMethod
+        update?: ServiceMethod,
 
         /**
          * DELETE request.
          */
-        delete?: ServiceMethod
+        delete?: ServiceMethod,
     }
 }
 
@@ -49,7 +49,9 @@ method ServiceMethod {
         /**
          * Schema of the JSON body in the request.
          */
-        request?: object
+        request?: oneof {
+            string
+        }
 
         /**
          * Schema of the JSON body in the response.

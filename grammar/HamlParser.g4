@@ -4,53 +4,67 @@ options {
   tokenVocab = HamlLexer;
 }
 
-program: (decl)* EOF ;
+program: (statement)* EOF ;
 
-decl
-  : structDecl
-  | enumDecl
-  | interfaceDecl
-  ;
+statement
+    : declaration
+    ;
 
-// This parser rule is required to support identifiers that are the same as a
-// keyword. For example, allowing "type" to be both a keyword and a field name.
-identifier
-  : STRUCT
-  | TYPE
-  | IDENTIFIER
-  ;
+declaration
+    : ruleDeclaration
+    ;
 
-type
-  : TYPE
-  | IDENTIFIER
-  ;
+ruleDeclaration
+    : RULE STRING OPEN_BRACE NEWLINE* fieldDeclaration* CLOSE_BRACE;
 
-// --------------------------------------------------
-// Struct declaration
-// --------------------------------------------------
+fieldDeclaration
+    : IDENTIFIER COLON IDENTIFIER NEWLINE* ;
 
-// struct Foo { ... }
-structDecl: STRUCT identifier OPEN_BRACE (fieldDecl)* CLOSE_BRACE ;
+// decl
+//   : structDecl
+//   | enumDecl
+//   | interfaceDecl
+//   ;
 
-// field myField: string;
-fieldDecl: identifier COLON type SEMICOLON ;
+// // This parser rule is required to support identifiers that are the same as a
+// // keyword. For example, allowing "type" to be both a keyword and a field name.
+// identifier
+//   : STRUCT
+//   | TYPE
+//   | IDENTIFIER
+//   ;
 
-// --------------------------------------------------
-// Enum declaration
-// --------------------------------------------------
+// type
+//   : TYPE
+//   | IDENTIFIER
+//   ;
 
-enumDecl: ENUM identifier OPEN_BRACE (identifier SEMICOLON)* CLOSE_BRACE ;
+// // --------------------------------------------------
+// // Struct declaration
+// // --------------------------------------------------
 
-// --------------------------------------------------
-// Class declaration
-// --------------------------------------------------
+// // struct Foo { ... }
+// structDecl: STRUCT identifier OPEN_BRACE (fieldDecl)* CLOSE_BRACE ;
 
-interfaceDecl: INTERFACE identifier OPEN_BRACE (methodDecl)* CLOSE_BRACE ;
+// // field myField: string;
+// fieldDecl: identifier COLON type SEMICOLON ;
 
-// --------------------------------------------------
-// Method declaration
-// --------------------------------------------------
+// // --------------------------------------------------
+// // Enum declaration
+// // --------------------------------------------------
 
-methodDecl: identifier OPEN_PAREN (argDecl (COMMA argDecl)*)* CLOSE_PAREN (COLON type)? SEMICOLON;
+// enumDecl: ENUM identifier OPEN_BRACE (identifier SEMICOLON)* CLOSE_BRACE ;
 
-argDecl: identifier COLON type ;
+// // --------------------------------------------------
+// // Class declaration
+// // --------------------------------------------------
+
+// interfaceDecl: INTERFACE identifier OPEN_BRACE (methodDecl)* CLOSE_BRACE ;
+
+// // --------------------------------------------------
+// // Method declaration
+// // --------------------------------------------------
+
+// methodDecl: identifier OPEN_PAREN (argDecl (COMMA argDecl)*)* CLOSE_PAREN (COLON type)? SEMICOLON;
+
+// argDecl: identifier COLON type ;
