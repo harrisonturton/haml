@@ -7,64 +7,46 @@ options {
 program: (statement)* EOF ;
 
 statement
-    : declaration
+    : comment
+    | specDeclaration
+    | declaration
+    ;
+
+comment
+    : START_SLASH_COMMENT SLASH_COMMENT
+    | BLOCK_COMMENT
     ;
 
 declaration
-    : ruleDeclaration
+    : specDeclaration
+    | ruleDeclaration
     ;
 
+specDeclaration
+    : singleSpecDeclaration
+    | multipleSpecDeclaration
+    ;
+
+singleSpecDeclaration
+    : SPEC STRING SEMICOLON;
+
+multipleSpecDeclaration
+    : SPEC OPEN_BRACE (STRING SEMICOLON)* CLOSE_BRACE;
+
 ruleDeclaration
-    : RULE STRING OPEN_BRACE NEWLINE* fieldDeclaration* CLOSE_BRACE;
+    : RULE IDENTIFIER OPEN_BRACE propertyDeclaration* CLOSE_BRACE;
 
-fieldDeclaration
-    : IDENTIFIER COLON IDENTIFIER NEWLINE* ;
+propertyDeclaration
+    : IDENTIFIER COLON expression SEMICOLON;
 
-// decl
-//   : structDecl
-//   | enumDecl
-//   | interfaceDecl
-//   ;
+expression
+    : type
+    | STRING
+    | IDENTIFIER
+    | object
+    ;
 
-// // This parser rule is required to support identifiers that are the same as a
-// // keyword. For example, allowing "type" to be both a keyword and a field name.
-// identifier
-//   : STRUCT
-//   | TYPE
-//   | IDENTIFIER
-//   ;
+type: TYPE (OPEN_BRACE CLOSE_BRACE)?;
 
-// type
-//   : TYPE
-//   | IDENTIFIER
-//   ;
-
-// // --------------------------------------------------
-// // Struct declaration
-// // --------------------------------------------------
-
-// // struct Foo { ... }
-// structDecl: STRUCT identifier OPEN_BRACE (fieldDecl)* CLOSE_BRACE ;
-
-// // field myField: string;
-// fieldDecl: identifier COLON type SEMICOLON ;
-
-// // --------------------------------------------------
-// // Enum declaration
-// // --------------------------------------------------
-
-// enumDecl: ENUM identifier OPEN_BRACE (identifier SEMICOLON)* CLOSE_BRACE ;
-
-// // --------------------------------------------------
-// // Class declaration
-// // --------------------------------------------------
-
-// interfaceDecl: INTERFACE identifier OPEN_BRACE (methodDecl)* CLOSE_BRACE ;
-
-// // --------------------------------------------------
-// // Method declaration
-// // --------------------------------------------------
-
-// methodDecl: identifier OPEN_PAREN (argDecl (COMMA argDecl)*)* CLOSE_PAREN (COLON type)? SEMICOLON;
-
-// argDecl: identifier COLON type ;
+object
+    : OPEN_BRACE propertyDeclaration* CLOSE_BRACE;
