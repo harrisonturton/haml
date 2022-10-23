@@ -8,13 +8,14 @@ import java.util.List;
 
 public class Main {
 //    public static String path = "/test/string.haml";
-    public static String path = "/Users/harryturton/Documents/projects/haml/hamlc/src/main/resources/test/string.haml";
+    public static String path = "/Users/harryturton/Documents/projects/haml/hamlc/src/main/resources/test/api.haml";
 
     public static void main(String[] args) {
         var errorReporter = createErrorReporter();
         var syntaxErrorListener = createSyntaxErrorListener(errorReporter);
-        var symbolTablePass = createSymbolTablePass(errorReporter);
-        var compiler = createCompiler(errorReporter, syntaxErrorListener, symbolTablePass);
+        var compiler = createCompiler(
+            errorReporter,
+            syntaxErrorListener);
 
         try {
             compiler.run(path);
@@ -25,22 +26,19 @@ public class Main {
         }
     }
 
-    public static Compiler createCompiler(
+    private static Compiler createCompiler(
         ErrorReporter errorReporter,
-        SyntaxErrorListener syntaxErrorListener,
-        SymbolTablePass symbolTablePass) {
-        return new Compiler(errorReporter, syntaxErrorListener, symbolTablePass);
+        SyntaxErrorListener syntaxErrorListener) {
+        return new Compiler(
+            errorReporter,
+            syntaxErrorListener);
     }
 
-    public static SyntaxErrorListener createSyntaxErrorListener(ErrorReporter errorReporter) {
+    private static SyntaxErrorListener createSyntaxErrorListener(ErrorReporter errorReporter) {
         return new SyntaxErrorListener(errorReporter);
     }
 
-    public static SymbolTablePass createSymbolTablePass(ErrorReporter errorReporter) {
-        return new SymbolTablePass(errorReporter);
-    }
-
-    public static ErrorReporter createErrorReporter() {
+    private static ErrorReporter createErrorReporter() {
         var errors = (Deque<Error>) new LinkedList<Error>();
         var files = new HashMap<String, List<String>>();
         return new ErrorReporter(errors, files);

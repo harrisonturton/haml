@@ -18,15 +18,15 @@ public class SymbolTablePass extends HamlParserBaseListener {
 
     private final ErrorReporter errorReporter;
 
-    private Map<String, Symbol> symbols = null;
+    private final Map<String, Symbol> symbols;
     private boolean resolveForwardReferences = false;
 
-    public SymbolTablePass(ErrorReporter errorReporter) {
+    public SymbolTablePass(ErrorReporter errorReporter, Map<String, Symbol> symbols) {
         this.errorReporter = errorReporter;
+        this.symbols = symbols;
     }
 
     public void run(ParseTree tree) {
-        symbols = new HashMap<>();
         var walker = new ParseTreeWalker();
         walker.walk(this, tree);
         // Must do two passes in order to resolve forward references

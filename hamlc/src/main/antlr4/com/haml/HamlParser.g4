@@ -8,7 +8,7 @@ program: (statement)* EOF ;
 
 statement
     : comment
-    | specDeclaration
+    | importStatement
     | declaration
     ;
 
@@ -18,20 +18,20 @@ comment
     ;
 
 declaration
-    : specDeclaration
+    : importStatement
     | ruleDeclaration
     ;
 
-specDeclaration
-    : singleSpecDeclaration
-    | multipleSpecDeclaration
+importStatement
+    : singleImportDeclaration
+    | multipleImportDeclaration
     ;
 
-singleSpecDeclaration
-    : SPEC STRING SEMICOLON;
+singleImportDeclaration
+    : IMPORT STRING SEMICOLON;
 
-multipleSpecDeclaration
-    : SPEC OPEN_BRACE (STRING SEMICOLON)* CLOSE_BRACE;
+multipleImportDeclaration
+    : IMPORT OPEN_BRACE (STRING SEMICOLON)* CLOSE_BRACE;
 
 ruleDeclaration
     : RULE IDENTIFIER OPEN_BRACE propertyDeclaration* CLOSE_BRACE;

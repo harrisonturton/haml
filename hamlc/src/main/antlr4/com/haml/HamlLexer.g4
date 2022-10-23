@@ -18,6 +18,7 @@ SPEC: 'spec';
 STRING: '"' ~('"')*? '"';
 ENUM: 'enum';
 COMMA: ',';
+IMPORT: 'import';
 TYPE: 'string' | 'number';
 INTERFACE: 'interface';
 IDENTIFIER: [a-zA-Z]+;
