@@ -35,6 +35,9 @@ public class Error {
     }
 
     public String userError(List<String> lines) {
+        if (lines == null) {
+            throw new AssertionError("lines is null for file " + file);
+        }
         var lineLabel = "  " + (line + 1) + " | ";
 
         var builder = new StringBuilder();

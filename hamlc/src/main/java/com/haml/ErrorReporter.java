@@ -9,6 +9,7 @@ import java.util.Map;
 public class ErrorReporter {
     private final Deque<Error> errors;
     private final Map<String, List<String>> files;
+    private String currentFile = null;
 
     public ErrorReporter(Deque<Error> errors, Map<String, List<String>> files) {
         this.errors = errors;
@@ -19,13 +20,24 @@ public class ErrorReporter {
         files.put(name, lines);
     }
 
+    public void setCurrentFile(String currentFile) {
+        this.currentFile = currentFile;
+    }
+
+    public String getCurrentFile() {
+        return currentFile;
+    }
+
     public void report(Error error) {
-        errors.addFirst(error);
+        errors.addLast(error);
     }
 
     public void reportFromToken(Token token, String message, Object... args) {
+        if (currentFile == null) {
+            throw new AssertionError("current file cannot be null");
+        }
         var error = new Error(
-            token.getTokenSource().getSourceName(),
+            currentFile,
             token.getLine() - 1,
             token.getCharPositionInLine(),
             String.format(message, args));
@@ -41,6 +53,7 @@ public class ErrorReporter {
         builder.append(String.format("Failed to compile due to %d errors:\n\n", errors.size()));
         for (var error : errors) {
             builder.append(error.userError(files.get(error.file)));
+            builder.append("\n");
         }
         return builder.toString();
     }

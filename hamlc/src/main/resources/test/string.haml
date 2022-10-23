@@ -4,16 +4,16 @@
 rule Testing {
     key: {
         one: "1";
-        forwardReference: badIdentifier;
+        forwardReference: another;
     };
 }
 
 rule another {
     key: {
-        one: string;
+        one: Test;
         two: Testing;
     };
 }
 
-ule another {
+rule another {
 }
