@@ -20,7 +20,7 @@ ENUM: 'enum';
 COMMA: ',';
 TYPE: 'string' | 'number';
 INTERFACE: 'interface';
-IDENTIFIER: [a-z]+;
+IDENTIFIER: [a-zA-Z]+;
 KEYWORD: [a-z]+[a-zA-Z0-9_]*;
 
 WS: [ \n\t\r]+ -> skip;

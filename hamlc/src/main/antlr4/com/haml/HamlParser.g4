@@ -46,7 +46,7 @@ expression
     | object
     ;
 
-type: TYPE (OPEN_BRACE CLOSE_BRACE)?;
+type: TYPE (OPEN_BRACKET CLOSE_BRACKET)?;
 
 object
     : OPEN_BRACE propertyDeclaration* CLOSE_BRACE;

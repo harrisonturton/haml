@@ -1,0 +1,19 @@
+/**
+ * Block documentation comment
+ */
+rule Testing {
+    key: {
+        one: "1";
+        forwardReference: badIdentifier;
+    };
+}
+
+rule another {
+    key: {
+        one: string;
+        two: Testing;
+    };
+}
+
+ule another {
+}
