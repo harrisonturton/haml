@@ -1,6 +1,4 @@
-package com.haml;
-
-import org.antlr.v4.runtime.Token;
+package com.haml.error;
 
 import java.util.List;
 
@@ -34,7 +32,7 @@ public class Error {
         this.message = message;
     }
 
-    public String userError(List<String> lines) {
+    public String prettyPrint(List<String> lines) {
         if (lines == null) {
             throw new AssertionError("lines is null for file " + file);
         }

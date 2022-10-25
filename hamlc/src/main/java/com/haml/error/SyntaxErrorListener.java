@@ -1,8 +1,6 @@
-package com.haml;
+package com.haml.error;
 
 import org.antlr.v4.runtime.*;
-
-import javax.tools.Diagnostic;
 
 public class SyntaxErrorListener extends BaseErrorListener {
     private final ErrorReporter errorReporter;
@@ -20,9 +18,12 @@ public class SyntaxErrorListener extends BaseErrorListener {
         String msg,
         RecognitionException e
     ) {
-        var token = (Token) offendingSymbol;
-        var message = String.format("unknown token \"%s\"", token.getText());
-        var error = new Error(errorReporter.getCurrentFile(), line, charPositionInLine, message);
+        var token = ((Token) offendingSymbol).getText();
+        var error = new Error(
+            errorReporter.getCurrentFile(),
+            line,
+            charPositionInLine,
+            ErrorMessages.unknownSymbol(token));
         errorReporter.report(error);
     }
 

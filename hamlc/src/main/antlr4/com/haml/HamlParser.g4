@@ -4,7 +4,9 @@ options {
   tokenVocab = HamlLexer;
 }
 
-program: (statement)* EOF ;
+program
+    : (statement)* EOF
+    ;
 
 statement
     : comment
@@ -23,21 +25,25 @@ declaration
     ;
 
 importStatement
-    : singleImportDeclaration
-    | multipleImportDeclaration
+    : selectiveImport
+    | completeImport
     ;
 
-singleImportDeclaration
-    : IMPORT STRING SEMICOLON;
+selectiveImport
+    : IMPORT OPEN_BRACE (IDENTIFIER (COMMA IDENTIFIER)*) CLOSE_BRACE FROM STRING SEMICOLON
+    ;
 
-multipleImportDeclaration
-    : IMPORT OPEN_BRACE (STRING SEMICOLON)* CLOSE_BRACE;
+completeImport
+    : IMPORT STRING SEMICOLON
+    ;
 
 ruleDeclaration
-    : RULE IDENTIFIER OPEN_BRACE propertyDeclaration* CLOSE_BRACE;
+    : RULE IDENTIFIER OPEN_BRACE propertyDeclaration* CLOSE_BRACE
+    ;
 
 propertyDeclaration
-    : IDENTIFIER COLON expression SEMICOLON;
+    : IDENTIFIER COLON expression SEMICOLON
+    ;
 
 expression
     : type
@@ -46,7 +52,10 @@ expression
     | object
     ;
 
-type: TYPE (OPEN_BRACKET CLOSE_BRACKET)?;
+type
+    : TYPE (OPEN_BRACKET CLOSE_BRACKET)?
+    ;
 
 object
-    : OPEN_BRACE propertyDeclaration* CLOSE_BRACE;
+    : OPEN_BRACE propertyDeclaration* CLOSE_BRACE
+    ;

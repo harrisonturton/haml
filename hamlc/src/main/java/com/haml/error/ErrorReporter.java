@@ -1,4 +1,4 @@
-package com.haml;
+package com.haml.error;
 
 import org.antlr.v4.runtime.Token;
 
@@ -32,7 +32,7 @@ public class ErrorReporter {
         errors.addLast(error);
     }
 
-    public void reportFromToken(Token token, String message, Object... args) {
+    public void reportFromToken(Token token, String message) {
         if (currentFile == null) {
             throw new AssertionError("current file cannot be null");
         }
@@ -40,7 +40,7 @@ public class ErrorReporter {
             currentFile,
             token.getLine() - 1,
             token.getCharPositionInLine(),
-            String.format(message, args));
+            message);
         report(error);
     }
 
@@ -52,7 +52,7 @@ public class ErrorReporter {
         var builder = new StringBuilder();
         builder.append(String.format("Failed to compile due to %d errors:\n\n", errors.size()));
         for (var error : errors) {
-            builder.append(error.userError(files.get(error.file)));
+            builder.append(error.prettyPrint(files.get(error.file)));
             builder.append("\n");
         }
         return builder.toString();

@@ -19,6 +19,7 @@ STRING: '"' ~('"')*? '"';
 ENUM: 'enum';
 COMMA: ',';
 IMPORT: 'import';
+FROM: 'from';
 TYPE: 'string' | 'number';
 INTERFACE: 'interface';
 IDENTIFIER: [a-zA-Z]+;

@@ -1,19 +1,21 @@
 package com.haml;
 
+import com.haml.error.ErrorReporter;
+import com.haml.error.SyntaxErrorListener;
+import com.haml.passes.CheckSymbolReferencesPass;
+import com.haml.passes.CollectSymbolsPass;
+import com.haml.passes.ResolveImportsPass;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
 import java.io.*;
 import java.nio.file.Paths;
-import java.util.*;
 
 public class Compiler {
     private final ErrorReporter errorReporter;
     private final SyntaxErrorListener syntaxErrorListener;
 
-    private final Deque<String> remainingFiles = new LinkedList<>();
-    private final Map<String, SymbolTablePass.Symbol> symbolTable = new HashMap<>();
-    private final Set<String> alreadyProcessed = new HashSet<>();
+    private final CompilerState state = CompilerState.createEmpty();
 
     public Compiler(ErrorReporter errorReporter, SyntaxErrorListener syntaxErrorListener) {
         this.errorReporter = errorReporter;
@@ -21,21 +23,10 @@ public class Compiler {
     }
 
     public void run(String rootFilepath) throws IOException {
-        var rootFile = new File(rootFilepath);
-        var importResolutionRoot = rootFile.getParent();
-        remainingFiles.push(rootFilepath);
+        state.queueFile(rootFilepath);
 
-        while (remainingFiles.size() > 0) {
-            var filepath = remainingFiles.pop();
-
-            var path = Paths.get(filepath);
-            if (path.isAbsolute()) {
-                runForFile(importResolutionRoot, path.toString());
-            } else {
-                var rootPath = Paths.get(importResolutionRoot);
-                var filePath = rootPath.resolve(filepath).normalize();
-                runForFile(importResolutionRoot, filePath.toString());
-            }
+        while (state.hasRemainingFiles()) {
+            runForFile(state.getNextFile());
         }
 
         if (errorReporter.hasErrors()) {
@@ -46,10 +37,9 @@ public class Compiler {
         }
     }
 
-    private void runForFile(String importResolutionRoot, String filepath) throws IOException {
+    private void runForFile(String filepath) throws IOException {
         var file = new File(filepath);
-        var fileReader = new FileInputStream(file);
-        var inputStream = new BufferedInputStream(fileReader);
+        var inputStream = ModuleReader.readModuleAbsolute(filepath);
 
         inputStream.mark(0);
         var inputReader = new InputStreamReader(inputStream);
@@ -67,16 +57,23 @@ public class Compiler {
         parser.addErrorListener(syntaxErrorListener);
 
         var tree = parser.program();
-        var resolveImportsPass = new ResolveImportsPass(importResolutionRoot, remainingFiles, alreadyProcessed);
-        var buildSymbolTablePass = new SymbolTablePass(errorReporter, symbolTable);
+        var resolveImportsPass = new ResolveImportsPass(
+            state, filepath, syntaxErrorListener, errorReporter);
 
-        var remainingFilesBefore = remainingFiles.size();
-        resolveImportsPass.run(tree);
-        if (remainingFilesBefore != remainingFiles.size()) {
-            remainingFiles.addLast(filepath);
+        var collectSymbolsPass = new CollectSymbolsPass(errorReporter, state);
+        var checkSymbolReferencesPass = new CheckSymbolReferencesPass(errorReporter, state);
+
+        if (resolveImportsPass.run(tree)) {
+            state.queueFile(filepath);
             return;
         }
-        buildSymbolTablePass.run(tree);
-        alreadyProcessed.add(filepath);
+
+        if (!state.hasCollectedSymbols(filepath)) {
+            collectSymbolsPass.run(tree);
+            state.finishCollectingSymbols(filepath);
+        }
+
+        checkSymbolReferencesPass.run(tree);
+        state.finishFile(filepath);
     }
 }

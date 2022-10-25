@@ -5,7 +5,7 @@
  */
 
 rule "message" {
-    fields: MessageField[],
+    fields: MessageField[]
 }
 
 field MessageField {
@@ -44,18 +44,16 @@ rule "service" {
 }
 
 method ServiceMethod {
-    input: string
+    input: string;
     body: {
         /**
          * Schema of the JSON body in the request.
          */
-        request?: oneof {
-            string
-        }
+        request?: object;
 
         /**
          * Schema of the JSON body in the response.
          */
-        response?: object
-    }
+        response?: object;
+    };
 }

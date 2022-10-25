@@ -1,4 +1,291 @@
-spec "~/api.haml.spec"
+
+api CreateTeam {
+    path: "/team";
+    method: Method.POST;
+    versions: {
+        03_05_23: CreateTeam_03_05_22;
+        21_10_22: CreateTeam_21_10_22;
+    };
+    gates: {
+        /**
+         * @description 
+         * We removed the `order` field because it is quite computationally
+         * expensive to calculate this, especially when we allow paging on a
+         * list the updates in realtime. We were forced to cache large
+         * responses. We decided to push this functionality to the client.
+         */
+        ordered_response: {
+            to: "03-05-23";
+            from: "21-10-22";
+            fields: {
+                order: string;
+            }
+        }
+    }
+}
+
+annotation Gate {
+    name: string,
+    version: string,
+}
+
+/**
+ * @version
+ * 03-05-23
+ * 
+ * @title
+ * create team
+ * 
+ * @short_description
+ * create a team.
+ * 
+ * @long_description
+ * creates a team, but since this is not an admin endpoint, there are
+ * restrictions on the permissions that cascade down to the members that added
+ * within this team. this endpoint cannot be used to add new permissions. to do
+ * this, you must use the admin endpoint {@link addpermission_25_10_22}.
+ *
+ * @javascript_example 
+ * ```js
+ * fetch("https://public-api.canva.com/team", {
+ *   method: "post",
+ *   headers: {
+ *     "authorization": `bearer ${accesstoken}`,
+ *   },
+ *   body: json.stringify({
+ *     members: ["U1234", "U1235"] 
+ *   })
+ * });
+ * ```
+ * 
+ * @python_example 
+ * ```python
+ * import requests
+ *
+ * headers = { "Authorization": f'Bearer ${accessToken}' } 
+ * body = { "members": ["U1234", "U1235"] }
+ * requests.post("https://public-api.canva.com/team", headers=headers json=body)
+ * ```
+ * 
+ * @js_sdk_example 
+ * ```js
+ * var API_TOKEN = "your-API-token";
+ * 
+ * var api = new CanvaApi();
+ * api.initialize(API_TOKEN)
+ * api.createTeam(["U1234", "U12345"])
+ * ```
+ */
+version CreateTeam_03_05_23 {
+    request: {
+        /**
+         * @title
+         * Create Team
+         * 
+         * @short_description
+         * Create a team.
+         * 
+         * @long_description
+         * Creates a team, but since this is not an admin endpoint, there are
+         * restrictions on the permissions that cascade down to the members that added
+         * within this team. This endpoint cannot be used to add new permissions. To do
+         * this, you must use the admin endpoint {@link AddPermission 25-10-22}.
+         */
+        @gate(name = "testing", version = "25-10-22")
+        name: string;
+
+        /**
+         * @title
+         * members
+         * 
+         * @short_description
+         * List of member IDs, max 100.
+         * 
+         * @long_description
+         * There are the members that will be added to the team. It is a list of
+         * their user IDs. This has a max of 100 people. If you want to create a
+         * team larger than this, see the batch team creation endpoints.
+         */
+        @renamed_from(field = "members", type = CreateTeam_25_10_22)
+        members: []string;
+    };
+    response: {
+        team: {
+            /**
+             * @title
+             * members
+             * 
+             * @short_description
+             * List of member IDs, max 100.
+             * 
+             * @long_description
+             * There are the members that will be added to the team. It is a list of
+             * their user IDs. This has a max of 100 people. If you want to create a
+             * team larger than this, see the batch team creation endpoints.
+             */
+            id: string;
+
+            /**
+             * @title
+             * members
+             * 
+             * @short_description
+             * List of member IDs, max 100.
+             * 
+             * @long_description
+             * There are the members that will be added to the team. It is a list of
+             * their user IDs. This has a max of 100 people. If you want to create a
+             * team larger than this, see the batch team creation endpoints.
+             */
+            name: string;
+
+            /**
+             * @title
+             * members
+             * 
+             * @short_description
+             * List of member IDs, max 100.
+             * 
+             * @long_description
+             * There are the members that will be added to the team. It is a list of
+             * their user IDs. This has a max of 100 people. If you want to create a
+             * team larger than this, see the batch team creation endpoints.
+             */
+            members: []string;
+        };
+    };
+}
+
+/**
+ * @version
+ * 25-10-22
+ * 
+ * @title
+ * create team
+ * 
+ * @short_description
+ * create a team.
+ * 
+ * @long_description
+ * creates a team, but since this is not an admin endpoint, there are
+ * restrictions on the permissions that cascade down to the members that added
+ * within this team. this endpoint cannot be used to add new permissions. to do
+ * this, you must use the admin endpoint {@link addpermission_25_10_22}.
+ *
+ * @javascript_example 
+ * ```js
+ * fetch("https://public-api.canva.com/team", {
+ *   method: "post",
+ *   headers: {
+ *     "authorization": `bearer ${accesstoken}`,
+ *   },
+ *   body: json.stringify({
+ *     members: ["U1234", "U1235"] 
+ *   })
+ * });
+ * ```
+ * 
+ * @python_example 
+ * ```python
+ * import requests
+ *
+ * headers = { "Authorization": f'Bearer ${accessToken}' } 
+ * body = { "members": ["U1234", "U1235"] }
+ * requests.post("https://public-api.canva.com/team", headers=headers json=body)
+ * ```
+ * 
+ * @js_sdk_example 
+ * ```js
+ * var API_TOKEN = "your-API-token";
+ * 
+ * var api = new CanvaApi();
+ * api.initialize(API_TOKEN)
+ * api.createTeam(["U1234", "U12345"])
+ * ```
+ */
+version CreateTeam_21_10_22 {
+    request: {
+        /**
+         * @title
+         * Create Team
+         * 
+         * @short_description
+         * Create a team.
+         * 
+         * @long_description
+         * Creates a team, but since this is not an admin endpoint, there are
+         * restrictions on the permissions that cascade down to the members that added
+         * within this team. This endpoint cannot be used to add new permissions. To do
+         * this, you must use the admin endpoint {@link AddPermission 25-10-22}.
+         */
+        name: string;
+
+        /**
+         * @title
+         * Create Team
+         * 
+         * @short_description
+         * Create a team.
+         * 
+         * @long_description
+         * Creates a team, but since this is not an admin endpoint, there are
+         * restrictions on the permissions that cascade down to the members that added
+         * within this team. This endpoint cannot be used to add new permissions. To do
+         * this, you must use the admin endpoint {@link AddPermission 25-10-22}.
+         */
+        members: []string;
+    };
+    response: {
+        team: {
+            /**
+             * @title
+             * Create Team
+             * 
+             * @short_description
+             * Create a team.
+             * 
+             * @long_description
+             * Creates a team, but since this is not an admin endpoint, there are
+             * restrictions on the permissions that cascade down to the members that added
+             * within this team. This endpoint cannot be used to add new permissions. To do
+             * this, you must use the admin endpoint {@link AddPermission 25-10-22}.
+             */
+            id: string;
+
+            /**
+             * @title
+             * Create Team
+             * 
+             * @short_description
+             * Create a team.
+             * 
+             * @long_description
+             * Creates a team, but since this is not an admin endpoint, there are
+             * restrictions on the permissions that cascade down to the members that added
+             * within this team. This endpoint cannot be used to add new permissions. To do
+             * this, you must use the admin endpoint {@link AddPermission 25-10-22}.
+             */
+
+            name: string;
+
+            /**
+             * @title
+             * Create Team
+             * 
+             * @short_description
+             * Create a team.
+             * 
+             * @long_description
+             * Creates a team, but since this is not an admin endpoint, there are
+             * restrictions on the permissions that cascade down to the members that added
+             * within this team. This endpoint cannot be used to add new permissions. To do
+             * this, you must use the admin endpoint {@link AddPermission 25-10-22}.
+             */
+            members: []string;
+        };
+    };
+}
+
 
 message CreateProfileRequest {
     name: string
@@ -6,11 +293,11 @@ message CreateProfileRequest {
 }
 
 message CreateProfileResponse {
-    id: number 
-    name: string
-    email: string
-    created_at: string
-    updated_at: string
+    id: number;
+    name: string;
+    email: string;
+    created_at: string;
+    updated_at: string;
 }
 
 service ProfileService {
@@ -19,8 +306,8 @@ service ProfileService {
      *
      * Long description
      */
-    post("/profile/create") {
-        request: CreateProfileRequest,
-        response: CreateProfileResponse,
-    }
+    post("/create") {
+        request: CreateProfileRequest;
+        response: CreateProfileResponse;
+    };
 }
