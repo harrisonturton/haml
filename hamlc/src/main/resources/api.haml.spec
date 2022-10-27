@@ -1,4 +1,4 @@
-import "versions.haml.spec";
+import { version } from "versions.haml.spec";
 
 rule api {
   path: string;

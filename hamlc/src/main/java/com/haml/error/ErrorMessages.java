@@ -12,4 +12,8 @@ public class ErrorMessages {
     public static String unknownSymbol(String symbol) {
         return String.format("unknown symbol \"%s\"", symbol);
     }
+
+    public static String fileImportedItself(String filepath) {
+        return String.format("%s cannot import itself", filepath);
+    }
 }

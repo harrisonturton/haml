@@ -2,50 +2,63 @@ package com.haml;
 
 import com.haml.error.ErrorReporter;
 import com.haml.error.SyntaxErrorListener;
-import com.haml.passes.CheckSymbolReferencesPass;
-import com.haml.passes.CollectSymbolsPass;
-import com.haml.passes.ResolveImportsPass;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
-import java.io.*;
-import java.nio.file.Paths;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.LinkedList;
 
 public class Compiler {
     private final ErrorReporter errorReporter;
     private final SyntaxErrorListener syntaxErrorListener;
+    private final State state;
 
-    private final CompilerState state = CompilerState.createEmpty();
-
-    public Compiler(ErrorReporter errorReporter, SyntaxErrorListener syntaxErrorListener) {
+    private Compiler(
+            ErrorReporter errorReporter,
+            SyntaxErrorListener syntaxErrorListener,
+            State state) {
         this.errorReporter = errorReporter;
         this.syntaxErrorListener = syntaxErrorListener;
+        this.state = state;
     }
 
-    public void run(String rootFilepath) throws IOException {
-        state.queueFile(rootFilepath);
+    public static Compiler createDefault(String entryPath) {
+        var errorReporter = new ErrorReporter(new LinkedList<>(), new HashMap<>());
+        var syntaxErrorListener = new SyntaxErrorListener(errorReporter);
+        var state = State.createEmpty(entryPath);
+        state.pushFileFirst(entryPath);
+        return new Compiler(errorReporter, syntaxErrorListener, state);
+    }
 
+    public static Compiler createDefaultWithState(String entryPath, State state) {
+        var errorReporter = new ErrorReporter(new LinkedList<>(), new HashMap<>());
+        var syntaxErrorListener = new SyntaxErrorListener(errorReporter);
+        state.pushFileFirst(entryPath);
+        return new Compiler(errorReporter, syntaxErrorListener, state);
+    }
+
+    public void run() throws IOException {
         while (state.hasRemainingFiles()) {
             runForFile(state.getNextFile());
         }
+    }
 
-        if (errorReporter.hasErrors()) {
-            var message = errorReporter.reportErrors();
-            System.err.println(message);
-        } else {
-            System.out.printf("%s compiled successfully", Paths.get(rootFilepath).getFileName());
-        }
+    public ErrorReporter getErrorReporter() {
+        return errorReporter;
     }
 
     private void runForFile(String filepath) throws IOException {
-        var file = new File(filepath);
-        var inputStream = ModuleReader.readModuleAbsolute(filepath);
+        var inputStream = Util.readModuleAbsolute(filepath);
 
         inputStream.mark(0);
         var inputReader = new InputStreamReader(inputStream);
         var lines = new BufferedReader(inputReader).lines().toList();
-        errorReporter.setCurrentFile(file.getName());
-        errorReporter.addFile(file.getName(), lines);
+        errorReporter.setCurrentFile(filepath);
+        errorReporter.addFile(filepath, lines);
         inputStream.reset();
 
         var charStream = CharStreams.fromStream(inputStream);
@@ -57,23 +70,8 @@ public class Compiler {
         parser.addErrorListener(syntaxErrorListener);
 
         var tree = parser.program();
-        var resolveImportsPass = new ResolveImportsPass(
-            state, filepath, syntaxErrorListener, errorReporter);
-
-        var collectSymbolsPass = new CollectSymbolsPass(errorReporter, state);
-        var checkSymbolReferencesPass = new CheckSymbolReferencesPass(errorReporter, state);
-
-        if (resolveImportsPass.run(tree)) {
-            state.queueFile(filepath);
-            return;
-        }
-
-        if (!state.hasCollectedSymbols(filepath)) {
-            collectSymbolsPass.run(tree);
-            state.finishCollectingSymbols(filepath);
-        }
-
-        checkSymbolReferencesPass.run(tree);
-        state.finishFile(filepath);
+        var analysisPass = new SemanticAnalysis(filepath, state, errorReporter);
+        var walker = new ParseTreeWalker();
+        walker.walk(analysisPass, tree);
     }
 }
