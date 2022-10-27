@@ -47,9 +47,12 @@ public class SemanticAnalysis extends HamlParserBaseListener {
                 properties.put(propertyName, type);
                 continue;
             }
+            errorReporter.reportFromToken(
+                    property.getStart(),
+                    ErrorMessages.unexpectedFailure("Unknown type %s for property \"%s\"",
+                            property.expression().getText(), propertyName));
         }
         var type = new Symbol.StructType(properties);
-        System.out.println(type);
         state.getScope().define(name, new Symbol(type, name));
     }
 

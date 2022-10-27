@@ -47,10 +47,6 @@ public class Compiler {
         }
     }
 
-    public ErrorReporter getErrorReporter() {
-        return errorReporter;
-    }
-
     private void runForFile(String filepath) throws IOException {
         var inputStream = Util.readModuleAbsolute(filepath);
 
@@ -73,5 +69,9 @@ public class Compiler {
         var analysisPass = new SemanticAnalysis(filepath, state, errorReporter);
         var walker = new ParseTreeWalker();
         walker.walk(analysisPass, tree);
+    }
+
+    public ErrorReporter getErrorReporter() {
+        return errorReporter;
     }
 }

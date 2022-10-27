@@ -16,4 +16,8 @@ public class ErrorMessages {
     public static String fileImportedItself(String filepath) {
         return String.format("%s cannot import itself", filepath);
     }
+
+    public static String unexpectedFailure(String message, Object... args) {
+        return String.format(message, args);
+    }
 }
