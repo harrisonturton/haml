@@ -4,6 +4,7 @@ import com.haml.error.ErrorMessages;
 import com.haml.error.ErrorReporter;
 
 import java.io.IOException;
+import java.util.HashMap;
 
 public class SemanticAnalysis extends HamlParserBaseListener {
     private final String filepath;
@@ -24,7 +25,40 @@ public class SemanticAnalysis extends HamlParserBaseListener {
                     ctx.getStart(), ErrorMessages.duplicateIdentifier(name));
             return;
         }
-        state.getScope().define(name, new Symbol());
+
+        var properties = new HashMap<String, Symbol.Type>();
+        for (var property : ctx.propertyDeclaration()) {
+            var propertyName = property.IDENTIFIER().getText();
+            if (property.expression().type() != null) {
+                var rawType = property.expression().type().getText();
+                var type = parseType(rawType);
+                properties.put(propertyName, type);
+                continue;
+            }
+            if (property.expression().STRING() != null) {
+                var literal = property.expression().STRING().getText().replace("\"", "");
+                var type = new Symbol.StringLiteralType(literal);
+                properties.put(propertyName, type);
+                continue;
+            }
+            if (property.expression().IDENTIFIER() != null) {
+                var identifier = property.expression().IDENTIFIER().getText();
+                var type = new Symbol.IdentifierType(identifier);
+                properties.put(propertyName, type);
+                continue;
+            }
+        }
+        var type = new Symbol.StructType(properties);
+        System.out.println(type);
+        state.getScope().define(name, new Symbol(type, name));
+    }
+
+    private Symbol.Type parseType(String type) {
+        return switch (type) {
+            case "number" -> new Symbol.NumberType();
+            case "string" -> new Symbol.StringType();
+            default -> new Symbol.IdentifierType(type);
+        };
     }
 
     @Override

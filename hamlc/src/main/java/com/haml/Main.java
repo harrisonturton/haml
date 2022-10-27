@@ -1,14 +1,6 @@
 package com.haml;
 
-import com.haml.error.Error;
-import com.haml.error.ErrorReporter;
-import com.haml.error.SyntaxErrorListener;
-
 import java.io.IOException;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 
 public class Main {
     public static String path = "/Users/harryturton/Documents/projects/haml/hamlc/src/main/resources/test/user.haml";
@@ -26,7 +18,8 @@ public class Main {
 
         var errorReporter = compiler.getErrorReporter();
         if (errorReporter.hasErrors()) {
-            errorReporter.reportErrors();
+            var message = errorReporter.reportErrors();
+            System.err.println(message);
         } else {
             System.out.println("Compiled successfully.");
         }
