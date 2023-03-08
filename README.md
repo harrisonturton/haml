@@ -77,6 +77,7 @@ endpoint GetFolder {
   path: "/folder/{folder_id}",
   request: GetFolderRequest,
   response: GetFolderResponse,
+}
 
 struct GetFolderRequest {
   folder_id: string,
