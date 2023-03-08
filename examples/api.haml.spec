@@ -4,7 +4,7 @@
 
 package api.spec;
 
-use "http";
+use spec "http";
 
 @singleton
 constructor api {

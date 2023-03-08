@@ -40,6 +40,8 @@ annotation description {}
 Would enforce the following API specification:
 
 ```
+use spec "common/api";
+
 api FolderApi {
   name: "Folders",
   endpoints: {
