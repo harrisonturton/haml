@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "schemac"
+name = "hamlc"
 version = "0.1.0"
