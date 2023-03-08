@@ -1,9 +1,13 @@
 # hamlc
 
-This is an experimental configuration language that separates the definition of
-the schema from it's use in a given configuration or specification file.
+`haml` is an experimental **configuration metalanguage**. It is used to create
+specification files that can be used to parse and typecheck other files. In
+other words, it lets you design the language you use to abstract over your
+problem domain, and evolve this language over time.
 
-For example, the following schema:
+### Example API specification
+
+This schema could be used to parse and typecheck the following file:
 
 ```
 @singleton
@@ -36,8 +40,6 @@ annotation name {}
 annotation summary {}
 annotation description {}
 ```
-
-Would enforce the following API specification:
 
 ```
 use spec "common/api";
