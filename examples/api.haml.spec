@@ -19,28 +19,15 @@ constructor endpoint {
     response: struct,
 }
 
-/**
- * Mark endpoints that are deprecated, and optionally describe when they will be
- * deleted, and what they are superceded by.
- */
 annotation deprecated {
   expiry?: string,
   replaced_by?: Endpoint,
 }
 
-/**
- * Name of an endpoint
- */
+annotation title { }
+
 annotation summary { }
 
-/**
- * Short description (one sentence) of an endpoint
- */
-annotation summary { }
-
-/**
- * Long description (multiple paragraphs) of an endpoint
- */
 annotation description { }
 
 // ------------------------------
