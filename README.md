@@ -9,7 +9,15 @@ For example, the following schema:
 @singleton
 constructor api {
   name: string,
-  endpoints: map<string, Endpoint>
+  endpoints: map<string, EndpointSet>
+}
+
+struct EndpointSet {
+  get?: endpoint,
+  post?: endpoint,
+  delete?: endpoint,
+  patch?: endpoint,
+  put?: endpoint,
 }
 
 constructor endpoint {
