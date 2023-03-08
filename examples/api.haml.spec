@@ -1,30 +1,22 @@
-# hamlc
+// ------------------------------
+// Schema specification
+// ------------------------------
 
-This is an experimental configuration language that separates the definition of
-the schema from it's use in a given configuration or specification file.
+package api.spec;
 
-For example, the following schema:
+use "http";
 
-```
 @singleton
 constructor api {
   name: string,
-  endpoints: map<string, EndpointSet>
-}
-
-struct EndpointSet {
-  get?: endpoint,
-  post?: endpoint,
-  delete?: endpoint,
-  patch?: endpoint,
-  put?: endpoint,
+  endpoints: map<string, Endpoint>
 }
 
 constructor endpoint {
-  name: string,
-  path: string,
-  request: struct,
-  response: struct,
+    name: string,
+    path: string,
+    request: struct,
+    response: struct,
 }
 
 annotation deprecated {
@@ -32,14 +24,20 @@ annotation deprecated {
   replaced_by?: Endpoint,
 }
 
-annotation name {}
-annotation summary {}
-annotation description {}
-```
+annotation title { }
 
-Would enforce the following API specification:
+annotation summary { }
 
-```
+annotation description { }
+
+// ------------------------------
+// Type-checked config file
+// ------------------------------
+
+package api.folder;
+
+use "common/api/spec";
+
 api FolderApi {
   name: "Folders",
   endpoints: {
@@ -57,7 +55,6 @@ api FolderApi {
     },
   }
 }
-
 
 /**
  * @name
@@ -77,6 +74,7 @@ endpoint GetFolder {
   path: "/folder/{folder_id}",
   request: GetFolderRequest,
   response: GetFolderResponse,
+}
 
 struct GetFolderRequest {
   folder_id: string,
@@ -94,4 +92,3 @@ struct Folder {
   created: u64,
   updated: u64,
 }
-```
