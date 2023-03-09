@@ -43,7 +43,7 @@ impl<'a> Lexer<'a> {
                 '<' => TokenKind::OpenChevron,
                 '>' => TokenKind::CloseChevron,
                 ':' => TokenKind::Colon,
-                ';' => TokenKind::Semicolon,
+                ';' => TokenKind::Semi,
                 ',' => TokenKind::Comma,
                 '@' => TokenKind::At,
                 '.' => TokenKind::Period,

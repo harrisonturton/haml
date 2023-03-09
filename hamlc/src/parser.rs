@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, ConstructorDecl, FieldDecl,
-        FieldValue, ImportStmt, PackageStmt, Stmt, StructDecl,
+        AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, BlockDecl, ConstructorDecl,
+        FieldDecl, FieldSetDecl, FieldValue, ImportStmt, MapDecl, PackageStmt, Stmt, StructDecl,
     },
     lexer::{Lexer, TokenError},
     token::{Token, TokenKind},
@@ -25,12 +25,12 @@ impl<'a> Parser<'a> {
         match token.kind {
             TokenKind::Package => self.package_stmt(),
             TokenKind::Import => self.import_stmt(),
-            TokenKind::At => self.annotations(),
+            TokenKind::At => self.annotation_def(),
             TokenKind::Struct => self.struct_decl(vec![]),
             TokenKind::Constructor => self.constructor_decl(vec![]),
             TokenKind::Annotation => self.annotation_decl(vec![]),
             TokenKind::Eof => Ok(Stmt::Eof),
-            _ => return Err(ParseError::UnexpectedToken(token)),
+            _ => return Err(unexpected_token(token, "a package, import or declaration")),
         }
     }
 
@@ -43,8 +43,8 @@ impl<'a> Parser<'a> {
             let token = self.advance_token()?;
             match token.kind {
                 TokenKind::Period => continue,
-                TokenKind::Semicolon => break,
-                _ => return Err(ParseError::UnexpectedToken(token)),
+                TokenKind::Semi => break,
+                _ => return Err(unexpected_token(token, "period or semicolon")),
             };
         }
         let stmt = PackageStmt { segments };
@@ -53,12 +53,12 @@ impl<'a> Parser<'a> {
 
     fn import_stmt(&mut self) -> ParseResult<Stmt> {
         let path = self.pop(TokenKind::StringLiteral)?;
-        self.pop(TokenKind::Semicolon)?;
+        self.pop(TokenKind::Semi)?;
         let stmt = ImportStmt { path };
         Ok(Stmt::ImportStmt(stmt))
     }
 
-    fn annotations(&mut self) -> ParseResult<Stmt> {
+    fn annotation_def(&mut self) -> ParseResult<Stmt> {
         let mut annotations = vec![];
         loop {
             let name = self.pop(TokenKind::Ident)?;
@@ -70,31 +70,74 @@ impl<'a> Parser<'a> {
                 TokenKind::Constructor => return self.constructor_decl(annotations),
                 TokenKind::Struct => return self.struct_decl(annotations),
                 TokenKind::Annotation => return self.annotation_decl(annotations),
-                _ => return Err(ParseError::UnexpectedToken(token)),
+                _ => {
+                    return Err(unexpected_token(
+                        token,
+                        "an annotation, constructor or struct",
+                    ))
+                }
             };
         }
     }
 
     fn struct_decl(&mut self, annotations: Vec<Token>) -> ParseResult<Stmt> {
         let name = self.pop(TokenKind::Ident)?;
-        let fields = self.field_set_decl()?;
+        let content = self.block_decl()?;
         let stmt = StructDecl {
             annotations,
             name,
-            fields,
+            content,
         };
         Ok(Stmt::StructDecl(stmt))
     }
 
     fn constructor_decl(&mut self, annotations: Vec<Token>) -> ParseResult<Stmt> {
         let name = self.pop(TokenKind::Ident)?;
-        let fields = self.field_set_decl()?;
+        let content = self.block_decl()?;
         let stmt = ConstructorDecl {
             annotations,
             name,
-            fields,
+            content,
         };
         Ok(Stmt::ConstructorDecl(stmt))
+    }
+
+    fn block_decl(&mut self) -> ParseResult<BlockDecl> {
+        self.pop(TokenKind::OpenBrace)?;
+        let discriminator = self.advance_token()?;
+        match discriminator.kind {
+            TokenKind::Union => self.union_decl(),
+            TokenKind::Repeatable => self.repeatable_decl(),
+            TokenKind::Map => {
+                let map = self.map_decl()?;
+                self.pop(TokenKind::CloseBrace)?;
+                Ok(BlockDecl::MapDecl(map))
+            }
+            TokenKind::Ident => {
+                let fields = self.field_set_decl(Some(discriminator))?;
+                Ok(BlockDecl::FieldSetDecl(fields))
+            }
+            _ => {
+                return Err(unexpected_token(
+                    discriminator,
+                    "union, repeatable or an identifier",
+                ))
+            }
+        }
+    }
+
+    fn union_decl(&mut self) -> ParseResult<BlockDecl> {
+        self.pop(TokenKind::OpenBrace)?;
+        let fields = self.field_set_decl(None)?;
+        self.pop(TokenKind::CloseBrace)?;
+        Ok(BlockDecl::FieldSetDecl(fields))
+    }
+
+    fn repeatable_decl(&mut self) -> ParseResult<BlockDecl> {
+        self.pop(TokenKind::OpenBrace)?;
+        let fields = self.field_set_decl(None)?;
+        self.pop(TokenKind::CloseBrace)?;
+        Ok(BlockDecl::RepeatableDecl(fields))
     }
 
     fn annotation_decl(&mut self, annotations: Vec<Token>) -> ParseResult<Stmt> {
@@ -106,6 +149,88 @@ impl<'a> Parser<'a> {
             fields,
         };
         Ok(Stmt::AnnotationDecl(stmt))
+    }
+
+    // Set of nested key-value pairs inside two braces. `leading_ident` is provided
+    // so block_decl can call field_set_decl if it encounters a identifier. The
+    // lexer doesn't support peeking so we have to work without this lookahead.
+    fn field_set_decl(&mut self, leading_ident: Option<Token>) -> ParseResult<FieldSetDecl> {
+        let mut fields = vec![];
+
+        if let Some(name) = leading_ident {
+            let mut optional = false;
+            let token = self.advance_token()?;
+            match token.kind {
+                TokenKind::QuestionMark => {
+                    optional = true;
+                    self.pop(TokenKind::Colon)?;
+                }
+                TokenKind::Colon => {}
+                _ => return Err(unexpected_token(token, "a question mark or colon")),
+            };
+            let value = self.field_value()?;
+            self.pop(TokenKind::Semi)?;
+            fields.push(FieldDecl {
+                name,
+                value,
+                optional,
+            })
+        }
+
+        loop {
+            let mut optional = false;
+            let token = self.advance_token()?;
+            match token.kind {
+                TokenKind::CloseBrace => break,
+                TokenKind::Ident => {}
+                _ => return Err(unexpected_token(token, "a close brace or identifier")),
+            };
+            let name = token;
+
+            let token = self.advance_token()?;
+            match token.kind {
+                TokenKind::QuestionMark => {
+                    optional = true;
+                    self.pop(TokenKind::Colon)?;
+                }
+                TokenKind::Colon => {}
+                _ => return Err(unexpected_token(token, "question mark or colon")),
+            };
+
+            let value = self.field_value()?;
+            self.pop(TokenKind::Semi)?;
+
+            fields.push(FieldDecl {
+                name,
+                value,
+                optional,
+            })
+        }
+
+        let decl = FieldSetDecl { fields };
+        Ok(decl)
+    }
+
+    fn field_value(&mut self) -> ParseResult<FieldValue> {
+        let token = self.advance_token()?;
+        let field_value = match token.kind {
+            TokenKind::Ident => FieldValue::Ident(token),
+            TokenKind::String => FieldValue::String(token),
+            TokenKind::Uint32 => FieldValue::Uint32(token),
+            TokenKind::Uint64 => FieldValue::Uint64(token),
+            TokenKind::Int32 => FieldValue::Int32(token),
+            TokenKind::Int64 => FieldValue::Int64(token),
+            TokenKind::Float32 => FieldValue::Float32(token),
+            TokenKind::Float64 => FieldValue::Float64(token),
+            TokenKind::Unknown => FieldValue::Unknown(token),
+            TokenKind::Struct => FieldValue::Struct(token),
+            TokenKind::Map => {
+                let decl = self.map_decl()?;
+                FieldValue::Map(Box::new(decl))
+            }
+            _ => return Err(unexpected_token(token, "a field value type")),
+        };
+        Ok(field_value)
     }
 
     // Set of key-value pairs within two braces that cannot be nested and can only
@@ -120,7 +245,7 @@ impl<'a> Parser<'a> {
             match token.kind {
                 TokenKind::CloseBrace => break,
                 TokenKind::Ident => {}
-                _ => return Err(ParseError::UnexpectedToken(token)),
+                _ => return Err(unexpected_token(token, "closing brace or identifier")),
             };
             let name = token;
 
@@ -131,7 +256,7 @@ impl<'a> Parser<'a> {
                     self.pop(TokenKind::Colon)?;
                 }
                 TokenKind::Colon => {}
-                _ => return Err(ParseError::UnexpectedToken(token)),
+                _ => return Err(unexpected_token(token, "a question mark or colon")),
             };
 
             let value = self.annotation_field_value()?;
@@ -157,78 +282,18 @@ impl<'a> Parser<'a> {
             TokenKind::Int64 => AnnotationFieldValue::Int64(token),
             TokenKind::Float32 => AnnotationFieldValue::Float32(token),
             TokenKind::Float64 => AnnotationFieldValue::Float64(token),
-            _ => return Err(ParseError::UnexpectedToken(token)),
+            _ => return Err(unexpected_token(token, "a string or number type")),
         };
         Ok(field_value)
     }
 
-    // Set of nested key-value pairs inside two braces
-    fn field_set_decl(&mut self) -> ParseResult<Vec<FieldDecl>> {
-        self.pop(TokenKind::OpenBrace)?;
-
-        let mut fields = vec![];
-        loop {
-            let mut optional = false;
-            let token = self.advance_token()?;
-            match token.kind {
-                TokenKind::CloseBrace => break,
-                TokenKind::Repeatable => {
-                    let fields = self.field_set_decl()?;
-                    self.pop(TokenKind::CloseBrace)?;
-                    return Ok(fields);
-                }
-                TokenKind::Ident => {}
-                _ => return Err(ParseError::UnexpectedToken(token)),
-            };
-            let name = token;
-
-            let token = self.advance_token()?;
-            match token.kind {
-                TokenKind::QuestionMark => {
-                    optional = true;
-                    self.pop(TokenKind::Colon)?;
-                }
-                TokenKind::Colon => {}
-                _ => return Err(ParseError::UnexpectedToken(token)),
-            };
-
-            let value = self.field_value()?;
-            self.pop(TokenKind::Comma)?;
-
-            fields.push(FieldDecl {
-                name,
-                value,
-                optional,
-            })
-        }
-
-        Ok(fields)
-    }
-
-    fn field_value(&mut self) -> ParseResult<FieldValue> {
-        let token = self.advance_token()?;
-        let field_value = match token.kind {
-            TokenKind::Ident => FieldValue::Ident(token),
-            TokenKind::String => FieldValue::String(token),
-            TokenKind::Uint32 => FieldValue::Uint32(token),
-            TokenKind::Uint64 => FieldValue::Uint64(token),
-            TokenKind::Int32 => FieldValue::Int32(token),
-            TokenKind::Int64 => FieldValue::Int64(token),
-            TokenKind::Float32 => FieldValue::Float32(token),
-            TokenKind::Float64 => FieldValue::Float64(token),
-            TokenKind::Unknown => FieldValue::Unknown(token),
-            TokenKind::Struct => FieldValue::Struct(token),
-            TokenKind::Map => {
-                self.pop(TokenKind::OpenChevron)?;
-                let key = self.field_value()?;
-                self.pop(TokenKind::Comma)?;
-                let value = self.field_value()?;
-                self.pop(TokenKind::CloseChevron)?;
-                FieldValue::Map(Box::new((key, value)))
-            }
-            _ => return Err(ParseError::UnexpectedToken(token)),
-        };
-        Ok(field_value)
+    fn map_decl(&mut self) -> ParseResult<MapDecl> {
+        self.pop(TokenKind::OpenChevron)?;
+        let key = self.field_value()?;
+        self.pop(TokenKind::Comma)?;
+        let value = self.field_value()?;
+        self.pop(TokenKind::CloseChevron)?;
+        Ok(MapDecl { key, value })
     }
 
     fn pop(&mut self, kind: TokenKind) -> ParseResult<Token> {
@@ -236,7 +301,7 @@ impl<'a> Parser<'a> {
         if token.kind == kind {
             Ok(token)
         } else {
-            Err(ParseError::UnexpectedToken(token))
+            Err(unexpected_token(token, "something else"))
         }
     }
 
@@ -245,18 +310,26 @@ impl<'a> Parser<'a> {
     }
 }
 
+fn unexpected_token(actual: Token, msg: &str) -> ParseError {
+    ParseError::UnexpectedToken(actual, msg.to_owned())
+}
+
 pub type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
 pub enum ParseError {
-    UnexpectedToken(Token),
+    UnexpectedToken(Token, String),
     TokenError(TokenError),
 }
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::UnexpectedToken(token) => write!(f, "Unexpected token {:?}", token.kind),
+            ParseError::UnexpectedToken(token, msg) => write!(
+                f,
+                "Unexpected token: expected {} but found {:?}",
+                msg, token.kind
+            ),
             ParseError::TokenError(err) => write!(f, "{}", err),
         }
     }

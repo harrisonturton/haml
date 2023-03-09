@@ -36,14 +36,33 @@ pub struct ImportStmt {
 pub struct ConstructorDecl {
     pub annotations: Vec<Token>,
     pub name: Token,
+    pub content: BlockDecl,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BlockDecl {
+    UnionDecl(FieldSetDecl),
+    MapDecl(MapDecl),
+    RepeatableDecl(FieldSetDecl),
+    FieldSetDecl(FieldSetDecl),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FieldSetDecl {
     pub fields: Vec<FieldDecl>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MapDecl {
+    pub key: FieldValue,
+    pub value: FieldValue,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructDecl {
     pub annotations: Vec<Token>,
     pub name: Token,
-    pub fields: Vec<FieldDecl>,
+    pub content: BlockDecl,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,7 +84,7 @@ pub enum FieldValue {
     Float64(Token),
     Unknown(Token),
     Struct(Token),
-    Map(Box<(FieldValue, FieldValue)>),
+    Map(Box<MapDecl>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

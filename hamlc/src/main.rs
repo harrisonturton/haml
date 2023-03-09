@@ -11,36 +11,25 @@ import "http";
 
 @singleton
 constructor api {
-    repeatable {
-        get?: int64,
-        post?: string,
-        update?: float32,
-        delete?: float32,
-    }
+    map<string, Endpoint>
 }
-
-struct Endpoint {
-    request: struct,
-    response: struct,
-}
-
 "#;
 
 const _INPUT_2: &'static str = r#"
 @singleton
-constructor "api" {
+constructor api {
     repeatable {
-        get: Endpoint,
-        post: Endpoint,
-        update: Endpoint,
-        delete: Endpoint,
+        get: Endpoint;
+        post: Endpoint;
+        update: Endpoint;
+        delete: Endpoint;
     }
 }
 
 struct Endpoint {
-    name: string,
-    request: type,
-    response: type,
+    name: string;
+    request: type;
+    response: type;
 }
 "#;
 

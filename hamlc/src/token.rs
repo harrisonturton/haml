@@ -80,7 +80,7 @@ pub enum TokenKind {
     // @
     At,
     // ;
-    Semicolon,
+    Semi,
     // ,
     Comma,
     // Period
