@@ -27,7 +27,7 @@ impl<'a> Lexer<'a> {
         loop {
             let ch = match self.bump() {
                 Some(ch) => ch,
-                None => return Ok(Token::eof()),
+                None => return Ok(Token::eof(self.input.len())),
             };
 
             let kind = match ch {
@@ -54,7 +54,7 @@ impl<'a> Lexer<'a> {
                 _ => return Err(TokenError::UnknownToken(ch)),
             };
 
-            let token = Token::new(kind, self.pos_within_token());
+            let token = Token::new(kind, self.pos, self.pos_within_token());
             self.reset_pos_within_token();
             self.pos = self.pos + token.len;
             return Ok(token);

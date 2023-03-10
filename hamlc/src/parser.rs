@@ -1,7 +1,8 @@
 use crate::{
     ast::{
-        AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, BlockDecl, ConstructorDecl,
-        FieldDecl, FieldSetDecl, FieldValue, ImportStmt, MapDecl, PackageStmt, Stmt, StructDecl,
+        AliasDecl, AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, Ast, BlockDecl,
+        ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl, PackageStmt,
+        Stmt, StructDecl,
     },
     lexer::{Lexer, TokenError},
     token::{Token, TokenKind},
@@ -18,6 +19,18 @@ impl<'a> Parser<'a> {
         Parser {
             lexer: Lexer::new(input),
         }
+    }
+
+    pub fn parse(&mut self) -> ParseResult<Ast> {
+        let mut stmts = vec![];
+        loop {
+            let stmt = self.advance()?;
+            if stmt == Stmt::Eof {
+                break;
+            }
+            stmts.push(stmt);
+        }
+        Ok(Ast { stmts })
     }
 
     pub fn advance(&mut self) -> ParseResult<Stmt> {
@@ -111,11 +124,16 @@ impl<'a> Parser<'a> {
             TokenKind::Map => {
                 let map = self.map_decl()?;
                 self.pop(TokenKind::CloseBrace)?;
-                Ok(BlockDecl::MapDecl(map))
+                let decl = AliasDecl::MapDecl(map);
+                Ok(BlockDecl::AliasDecl(decl))
             }
             TokenKind::Ident => {
                 let fields = self.field_set_decl(Some(discriminator))?;
                 Ok(BlockDecl::FieldSetDecl(fields))
+            }
+            TokenKind::CloseBrace => {
+                let fieldset = FieldSetDecl { fields: vec![] };
+                Ok(BlockDecl::FieldSetDecl(fieldset))
             }
             _ => {
                 return Err(unexpected_token(
@@ -172,7 +190,7 @@ impl<'a> Parser<'a> {
             self.pop(TokenKind::Semi)?;
             fields.push(FieldDecl {
                 name,
-                value,
+                typ: value,
                 optional,
             })
         }
@@ -202,7 +220,7 @@ impl<'a> Parser<'a> {
 
             fields.push(FieldDecl {
                 name,
-                value,
+                typ: value,
                 optional,
             })
         }
@@ -211,22 +229,22 @@ impl<'a> Parser<'a> {
         Ok(decl)
     }
 
-    fn field_value(&mut self) -> ParseResult<FieldValue> {
+    fn field_value(&mut self) -> ParseResult<FieldType> {
         let token = self.advance_token()?;
         let field_value = match token.kind {
-            TokenKind::Ident => FieldValue::Ident(token),
-            TokenKind::String => FieldValue::String(token),
-            TokenKind::Uint32 => FieldValue::Uint32(token),
-            TokenKind::Uint64 => FieldValue::Uint64(token),
-            TokenKind::Int32 => FieldValue::Int32(token),
-            TokenKind::Int64 => FieldValue::Int64(token),
-            TokenKind::Float32 => FieldValue::Float32(token),
-            TokenKind::Float64 => FieldValue::Float64(token),
-            TokenKind::Unknown => FieldValue::Unknown(token),
-            TokenKind::Struct => FieldValue::Struct(token),
+            TokenKind::Ident => FieldType::Ident(token),
+            TokenKind::String => FieldType::String(token),
+            TokenKind::Uint32 => FieldType::Uint32(token),
+            TokenKind::Uint64 => FieldType::Uint64(token),
+            TokenKind::Int32 => FieldType::Int32(token),
+            TokenKind::Int64 => FieldType::Int64(token),
+            TokenKind::Float32 => FieldType::Float32(token),
+            TokenKind::Float64 => FieldType::Float64(token),
+            TokenKind::Unknown => FieldType::Unknown(token),
+            TokenKind::Struct => FieldType::Struct(token),
             TokenKind::Map => {
                 let decl = self.map_decl()?;
-                FieldValue::Map(Box::new(decl))
+                FieldType::Map(Box::new(decl))
             }
             _ => return Err(unexpected_token(token, "a field value type")),
         };
@@ -301,7 +319,7 @@ impl<'a> Parser<'a> {
         if token.kind == kind {
             Ok(token)
         } else {
-            Err(unexpected_token(token, "something else"))
+            Err(unexpected_token(token, &format!("{}", kind)))
         }
     }
 
