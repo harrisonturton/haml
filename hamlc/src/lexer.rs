@@ -45,6 +45,7 @@ impl<'a> Lexer<'a> {
                 ':' => TokenKind::Colon,
                 ';' => TokenKind::Semi,
                 ',' => TokenKind::Comma,
+                '/' => self.comment()?,
                 '@' => TokenKind::At,
                 '.' => TokenKind::Period,
                 '?' => TokenKind::QuestionMark,
@@ -58,6 +59,41 @@ impl<'a> Lexer<'a> {
             self.reset_pos_within_token();
             self.pos = self.pos + token.len;
             return Ok(token);
+        }
+    }
+
+    fn comment(&mut self) -> TokenResult<TokenKind> {
+        let ch = self.first();
+        match ch {
+            '/' => self.single_line_comment(),
+            '*' => self.multi_line_comment(),
+            EOF_CHAR => Ok(TokenKind::Eof),
+            _ => return Err(TokenError::UnknownToken(ch)),
+        }
+    }
+
+    fn single_line_comment(&mut self) -> TokenResult<TokenKind> {
+        self.bump();
+        self.eat_while(is_not_newline);
+        Ok(TokenKind::Comment)
+    }
+
+    fn multi_line_comment(&mut self) -> TokenResult<TokenKind> {
+        self.bump();
+        loop {
+            match self.first() {
+                '*' => {
+                    self.bump();
+                    if self.first() == '/' {
+                        self.bump();
+                        return Ok(TokenKind::Comment);
+                    }
+                }
+                EOF_CHAR => return Err(TokenError::UnterminatedComment),
+                _ => {
+                    self.bump();
+                }
+            }
         }
     }
 
@@ -176,12 +212,17 @@ fn is_id_body(ch: char) -> bool {
     ch.is_ascii_alphanumeric() && !is_whitespace(ch)
 }
 
+fn is_not_newline(ch: char) -> bool {
+    ch != '\n'
+}
+
 pub type TokenResult<T> = Result<T, TokenError>;
 
 #[derive(Debug)]
 pub enum TokenError {
     UnknownToken(char),
     UnterminatedString,
+    UnterminatedComment,
 }
 
 impl Display for TokenError {
@@ -189,6 +230,7 @@ impl Display for TokenError {
         match self {
             TokenError::UnknownToken(ch) => write!(f, "Unknown token '{}'", ch),
             TokenError::UnterminatedString => write!(f, "Unterminated string"),
+            TokenError::UnterminatedComment => write!(f, "Unterminated comment"),
         }
     }
 }

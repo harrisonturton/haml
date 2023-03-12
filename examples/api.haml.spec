@@ -76,6 +76,18 @@ endpoint GetFolder {
   response: GetFolderResponse,
 }
 
+struct Something {
+  union on kind {
+    first: FirstVariant,
+    second: SecondVariant,
+  }
+}
+
+struct FirstVariant {
+  kind: "first"
+  name: string, 
+}
+
 struct GetFolderRequest {
   folder_id: string,
 }

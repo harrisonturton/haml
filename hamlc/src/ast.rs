@@ -1,35 +1,42 @@
 use crate::token::Token;
 
 pub trait Visitor {
-    fn package(&mut self, stmt: &PackageStmt) {}
+    fn package(&mut self, _decl: &PackageStmt) {}
 
-    fn import(&mut self, stmt: &ImportStmt) {}
+    fn import(&mut self, _decl: &ImportStmt) {}
 
-    fn constructor_decl(&mut self, stmt: &ConstructorDecl) {}
+    fn constructor_decl(&mut self, _decl: &ConstructorDecl) {}
 
-    fn struct_decl(&mut self, stmt: &StructDecl) {}
+    fn struct_decl(&mut self, _decl: &StructDecl) {}
 
-    fn union_decl(&mut self, decl: &FieldSetDecl) {}
+    fn union_decl(&mut self, _decl: &FieldSetDecl) {}
 
-    fn repetable_decl(&mut self, decl: &FieldSetDecl) {}
+    fn repetable_decl(&mut self, _decl: &FieldSetDecl) {}
 
-    fn alias_decl(&mut self, decl: &AliasDecl) {}
+    fn alias_decl(&mut self, _decl: &AliasDecl) {}
 
-    fn field_decl(&mut self, decl: &FieldDecl) {}
+    fn field_decl(&mut self, _decl: &FieldDecl) {}
 
-    fn field_type_decl(&mut self, decl: &FieldType) {}
+    fn field_type_decl(&mut self, _decl: &FieldType) {}
 
-    fn annotation_decl(&mut self, stmt: &AnnotationDecl) {}
+    fn annotation_decl(&mut self, _decl: &AnnotationDecl) {}
 
-    fn annotation_def(&mut self, stmt: &Token) {}
+    fn annotation_def(&mut self, _def: &Token) {}
+
+    fn comment(&mut self, _stmt: &Comment) {}
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Ast {
+pub struct Ast<'a> {
+    pub input: &'a str,
     pub stmts: Vec<Stmt>,
 }
 
-impl Ast {
+impl<'a> Ast<'a> {
+    pub fn span(&self, token: &Token) -> &'a str {
+        &self.input[token.start..token.start + token.len]
+    }
+
     pub fn walk(&self, visitor: &mut impl Visitor) {
         for stmt in self.stmts.iter() {
             match stmt {
@@ -38,6 +45,7 @@ impl Ast {
                 Stmt::ConstructorDecl(stmt) => self.constructor_decl(visitor, stmt),
                 Stmt::StructDecl(stmt) => visitor.struct_decl(stmt),
                 Stmt::AnnotationDecl(stmt) => visitor.annotation_decl(stmt),
+                Stmt::Comment(stmt) => visitor.comment(stmt),
                 Stmt::Eof => {}
             };
         }
@@ -87,12 +95,18 @@ impl Ast {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Stmt {
+    Comment(Comment),
     PackageStmt(PackageStmt),
     ImportStmt(ImportStmt),
     ConstructorDecl(ConstructorDecl),
     StructDecl(StructDecl),
     AnnotationDecl(AnnotationDecl),
     Eof,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Comment {
+    pub value: Token,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -110,6 +124,20 @@ pub struct ConstructorDecl {
     pub annotations: Vec<Token>,
     pub name: Token,
     pub content: BlockDecl,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConstructorDef {
+    pub checked_comment: Option<Comment>,
+    pub annotations: Vec<Token>,
+    pub constructor: Token,
+    pub name: Token,
+    pub content: BlockDecl,
+}
+
+pub struct CommentPart {
+    pub annotation: Option<StringAnnotation>,
+    pub comment: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

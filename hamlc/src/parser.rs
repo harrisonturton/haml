@@ -1,8 +1,8 @@
 use crate::{
     ast::{
         AliasDecl, AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, Ast, BlockDecl,
-        ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl, PackageStmt,
-        Stmt, StructDecl,
+        Comment, ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl,
+        PackageStmt, Stmt, StructDecl,
     },
     lexer::{Lexer, TokenError},
     token::{Token, TokenKind},
@@ -11,17 +11,19 @@ use crate::{
 /// Turns tokens into statements.
 #[derive(Debug)]
 pub struct Parser<'a> {
+    input: &'a str,
     lexer: Lexer<'a>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Parser<'a> {
         Parser {
+            input,
             lexer: Lexer::new(input),
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Ast> {
+    pub fn parse(&mut self) -> ParseResult<Ast<'a>> {
         let mut stmts = vec![];
         loop {
             let stmt = self.advance()?;
@@ -30,7 +32,10 @@ impl<'a> Parser<'a> {
             }
             stmts.push(stmt);
         }
-        Ok(Ast { stmts })
+        Ok(Ast {
+            input: self.input,
+            stmts,
+        })
     }
 
     pub fn advance(&mut self) -> ParseResult<Stmt> {
@@ -42,6 +47,7 @@ impl<'a> Parser<'a> {
             TokenKind::Struct => self.struct_decl(vec![]),
             TokenKind::Constructor => self.constructor_decl(vec![]),
             TokenKind::Annotation => self.annotation_decl(vec![]),
+            TokenKind::Comment => Ok(Stmt::Comment(Comment { value: token })),
             TokenKind::Eof => Ok(Stmt::Eof),
             _ => return Err(unexpected_token(token, "a package, import or declaration")),
         }

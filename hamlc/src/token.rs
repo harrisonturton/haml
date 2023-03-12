@@ -23,6 +23,8 @@ impl Token {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TokenKind {
+    // Single or multi-line comments
+    Comment,
     // package
     Package,
     // import
@@ -129,6 +131,7 @@ impl Display for TokenKind {
             TokenKind::Semi => ";",
             TokenKind::Comma => ",",
             TokenKind::Period => ".",
+            TokenKind::Comment => "comment",
             TokenKind::Eof => "eof",
         };
         write!(f, "{}", str)

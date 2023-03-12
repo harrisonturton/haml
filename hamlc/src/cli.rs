@@ -2,10 +2,10 @@ use crate::ast::{
     AliasDecl, AnnotationDecl, ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt,
     PackageStmt, StructDecl,
 };
+use crate::ast::{Ast, Comment};
 use clap::command;
 use clap::Parser;
 
-use crate::ast::Stmt;
 use crate::ast::Visitor;
 use crate::parser::{self, ParseError};
 use crate::token::Token;
@@ -50,24 +50,8 @@ pub fn main() {
         }
     };
 
-    ast.walk(&mut SimpleWalker);
-
-    // loop {
-    //     let stmt = match parser.advance() {
-    //         Ok(stmt) => stmt,
-    //         Err(err) => {
-    //             printerr(input, err);
-    //             return;
-    //         }
-    //     };
-    //     if args.verbose {
-    //         println!("{:?}", stmt);
-    //     }
-    //     match stmt {
-    //         Stmt::Eof => break,
-    //         _ => continue,
-    //     }
-    // }
+    let mut walker = SimpleWalker::new(&ast);
+    ast.walk(&mut walker);
 
     println!("Parsed successfully!");
 }
@@ -103,9 +87,17 @@ fn get_span<'a>(input: &'a str, token: &Token) -> &'a str {
     &input[token.start..token.start + token.len]
 }
 
-struct SimpleWalker;
+struct SimpleWalker<'a, 'b> {
+    ast: &'a Ast<'b>,
+}
 
-impl Visitor for SimpleWalker {
+impl<'a, 'b> SimpleWalker<'a, 'b> {
+    pub fn new(ast: &'a Ast<'b>) -> SimpleWalker<'a, 'b> {
+        SimpleWalker { ast }
+    }
+}
+
+impl Visitor for SimpleWalker<'_, '_> {
     fn package(&mut self, stmt: &PackageStmt) {
         println!("Walking package: {:?}", stmt);
     }
@@ -148,5 +140,10 @@ impl Visitor for SimpleWalker {
 
     fn annotation_def(&mut self, stmt: &Token) {
         println!("Walking annotation def: {:?}", stmt);
+    }
+
+    fn comment(&mut self, stmt: &Comment) {
+        let comment = self.ast.span(&stmt.value);
+        println!("Walking comment: {}", comment);
     }
 }

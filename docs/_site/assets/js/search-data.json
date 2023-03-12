@@ -1,0 +1,51 @@
+{"0": {
+    "doc": "Quickstart",
+    "title": "Quickstart",
+    "content": " ",
+    "url": "/01_quickstart.html",
+    
+    "relUrl": "/01_quickstart.html"
+  },"1": {
+    "doc": "Examples",
+    "title": "Examples",
+    "content": " ",
+    "url": "/02_examples.html",
+    
+    "relUrl": "/02_examples.html"
+  },"2": {
+    "doc": "Examples",
+    "title": "API specification schema",
+    "content": "This example implements a language that makes it easy to create specifications for collections of API endpoints. This could be used to drive code generating of the request/response types or to generate documentation. The following schema: . @singleton constructor api { name: string, endpoints: map&lt;string, EndpointSet&gt; } struct EndpointSet { get?: endpoint, post?: endpoint, delete?: endpoint, patch?: endpoint, put?: endpoint, } constructor endpoint { name: string, path: string, request: struct, response: struct, } annotation deprecated { expiry?: string, replaced_by?: Endpoint, } annotation name {} annotation summary {} annotation description {} . Parses and typechecks the following specification: . use spec \"common/api\"; api FolderApi { name: \"Folders\", endpoints: { \"/folders\": { get: FindFolders, post: CreateFolder, }, \"/folders/{folder_id}\": { get: GetFolder, post: UpdateFolder, delete: DeleteFolder, }, \"/folders/{folder_id}/trash\": { post: TrashFolder, }, } } /** * @name * Get folder * * @summary * Get a folder by it's ID. * * @description * Get a folder by it's ID. This will return status 404 when the folder cannot * be found. If there are any missing scopes, this will be reported through a * response in our standard error format with the relevant error codes. */ @deprecated(expires = \"2024-06-03\") endpoint GetFolder { name: \"get_folder\", path: \"/folder/{folder_id}\", request: GetFolderRequest, response: GetFolderResponse, } struct GetFolderRequest { folder_id: string, } struct GetFolderResponse { folder: Folder, } struct Folder { id: string, name: string, owner_id: string, parent_folder_id?: string, created: u64, updated: u64, } . ",
+    "url": "/02_examples.html#api-specification-schema",
+    
+    "relUrl": "/02_examples.html#api-specification-schema"
+  },"3": {
+    "doc": "Specification",
+    "title": "Specification",
+    "content": " ",
+    "url": "/03_specification.html",
+    
+    "relUrl": "/03_specification.html"
+  },"4": {
+    "doc": "Specification",
+    "title": "Grammar",
+    "content": "This is a PEG grammar. This is for documentation. All parsers are hand-written, but informed by this grammar. Having this written explicitly makes it easier to implement parsers for all the languages libraries. grammar = package? import* declaration* package = PACKAGE (COLON PACKAGE)* SEMI declaration = constructor_decl | schema_decl | annotation_decl constructor_decl = annotation_def* CONSTRUCTOR block_decl schema_decl = annotation_def* SCHEMA block_decl block_decl = OPEN_BRACE (block_attr_decl* | map_decl | union_decl | repatable_decl) CLOSE_BRACE map_decl = MAP OPEN_CHEVRON type COMMA type CLOSE_CHEVRON union_decl = UNION OPEN_PAREN block_attr_decl* CLOSE_PAREN repeatable_decl = REPEATABLE block_decl annotation_decl = annotation_def* ANNOTATION OPEN_PAREN annotation_attr_decl* CLOSE_PAREN AT = \"@\" CONSTRUCTOR = \"constructor\" SCHEMA = \"schema\" ANNOTATION = \"constructor\" COLON = \":\" OPEN_BRACE = \"{\" CLOSE_BRACE = \"}\" OPEN_PAREN = \"(\" CLOSE_PAREN = \")\" . ",
+    "url": "/03_specification.html#grammar",
+    
+    "relUrl": "/03_specification.html#grammar"
+  },"5": {
+    "doc": "Home",
+    "title": "haml",
+    "content": "haml is an experimental configuration metalanguage. It is used to describe the syntax and types that may be used in your configuration files, and then parse and typecheck them. This is helpful for abstracting over a problem domain that may evolve over time as you add new features. This is especially useful for sophisticated code-generation tasks like those tackled by OpenAPI and proto files. If you’ve ever wished the OpenAPI spec was slightly different, you’re in the right place. Check out these links to get started: . | Quickstart guide | Examples | Specification | Libraries | . ",
+    "url": "/#haml",
+    
+    "relUrl": "/#haml"
+  },"6": {
+    "doc": "Home",
+    "title": "Home",
+    "content": " ",
+    "url": "/",
+    
+    "relUrl": "/"
+  }
+}

@@ -4,12 +4,12 @@ layout: home
 nav_order: 0
 ---
 
-# Haml
+# haml
 
-`Haml` is an experimental **configuration metalanguage**. It is used to
-describe the syntax and types that may be used in your configuration files, and
-then parse and typecheck them. This is helpful for abstracting over a problem
-domain that may evolve over time as you add new features.
+`haml` is an experimental **configuration metalanguage**. It is used to describe
+the syntax and types that may be used in your configuration files, and then
+parse and typecheck them. This is helpful for abstracting over a problem domain
+that may evolve over time as you add new features.
 
 This is especially useful for sophisticated code-generation tasks like those
 tackled by OpenAPI and proto files. If you've ever wished the OpenAPI spec was
