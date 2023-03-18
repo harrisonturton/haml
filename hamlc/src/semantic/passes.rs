@@ -26,8 +26,6 @@ pub fn resolve_module(input: &str, import: &ImportStmt, module_root: &std::path:
             import_file_path.push(part);
         }
     }
-
-    println!("{:?}", import_file_path.as_path());
 }
 
 pub fn check_can_resolve_symbols(

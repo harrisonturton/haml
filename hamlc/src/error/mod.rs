@@ -1,4 +1,4 @@
-mod format;
+pub mod format;
 mod semantic;
 mod syntax;
 

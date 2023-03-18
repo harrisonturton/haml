@@ -11,23 +11,29 @@ pub fn format_err(
     span_len: usize,
     recommendation: &str,
 ) -> String {
+    let line_number = line_number + 1;
     let line_num_len = format!("{}", line_number).len();
     let min_indent = 3;
     let loc_indent = " ".repeat(1);
     let rest_indent = " ".repeat((line_num_len + 2).clamp(min_indent, usize::MAX));
     let char_col_indent = " ".repeat(char_col);
+    let common_indent = " ".repeat(2);
 
     let error = bold(&red("error"));
     let msg = bold(&format!(": {message}"));
-    let err_line = format!("{}{}", error, msg);
+    let err_line = format!("{common_indent}{}{}", error, msg);
 
     let file_line_prefix = dim("  ");
-    let file_line = format!("{file_line_prefix}{file_path}:{line_number}:{char_col}");
+    let file_line =
+        format!("{common_indent}{file_line_prefix}{file_path}:{line_number}:{char_col}");
 
-    let blank_loc_prefix = dim(&format!("{rest_indent}|"));
-    let code_line = format!(" {line_number}{loc_indent}{} {line}", dim("|"));
+    let blank_loc_prefix = dim(&format!("{common_indent}{rest_indent}|"));
+    let code_line = format!(
+        "{common_indent} {line_number}{loc_indent}{} {line}",
+        dim("|")
+    );
     let pointer_line = format!(
-        "{rest_indent}{}{char_col_indent}{} {}",
+        "{common_indent}{rest_indent}{}{char_col_indent}{} {}",
         dim("|"),
         bold(&purple(&"-".repeat(span_len))),
         bold(&purple(recommendation)),
@@ -41,7 +47,6 @@ pub fn format_err(
         pointer_line,
     ]
     .join("\n")
-    .trim()
     .to_owned()
 }
 
@@ -59,6 +64,10 @@ pub fn dim(value: &str) -> String {
 
 pub fn purple(value: &str) -> String {
     format!("\x1B[34m{value}\x1B[0m")
+}
+
+pub fn green(value: &str) -> String {
+    format!("\x1B[32m{value}\x1B[0m")
 }
 
 pub fn format(path: &str, input: &str, err: GenericError) -> String {

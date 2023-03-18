@@ -1,10 +1,9 @@
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-
 use clap::command;
 use clap::Parser;
+use std::path::PathBuf;
 
 use crate::error;
+use crate::error::format::{bold, green, red};
 use crate::semantic::check_can_resolve_symbols;
 use crate::syntax;
 
@@ -22,6 +21,8 @@ struct Args {
 
 pub fn main() {
     let args = Args::parse();
+
+    println!("{} {}", bold(&green("Checking")), args.path);
 
     let module_root = {
         if let Some(module_root) = args.module_root {
@@ -67,6 +68,10 @@ pub fn main() {
     };
 
     let (_, errs) = check_can_resolve_symbols(&module_root, input, &ast);
+    if errs.len() > 0 {
+        println!("");
+    }
+
     for err in errs.iter() {
         let err = error::GenericError::Semantic(err.clone());
         let msg = error::format(&args.path, input, err);
@@ -74,8 +79,8 @@ pub fn main() {
     }
 
     if errs.is_empty() {
-        println!("Parsed successfully!");
+        println!("{} successfully!", bold(&green("Finished")));
     } else {
-        println!("Parsing failed");
+        println!("{} with {} errors", bold(&red("Failed")), errs.len());
     }
 }
