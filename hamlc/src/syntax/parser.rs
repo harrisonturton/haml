@@ -10,16 +10,13 @@ use crate::error::SyntaxError;
 /// Turns tokens into statements.
 #[derive(Debug)]
 pub struct Parser<'a> {
-    input: &'a str,
     lexer: Lexer<'a>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Parser<'a> {
-        Parser {
-            input,
-            lexer: Lexer::new(input),
-        }
+        let lexer = Lexer::new(input);
+        Parser { lexer }
     }
 
     pub fn parse(&mut self) -> Result<Ast, SyntaxError> {
@@ -127,15 +124,15 @@ impl<'a> Parser<'a> {
                 let map = self.map_decl()?;
                 self.pop(TokenKind::CloseBrace)?;
                 let decl = AliasDecl::MapDecl(map);
-                Ok(BlockDecl::AliasDecl(decl))
+                Ok(BlockDecl::Alias(decl))
             }
             TokenKind::Ident => {
                 let fields = self.field_set_decl(Some(discriminator))?;
-                Ok(BlockDecl::FieldSetDecl(fields))
+                Ok(BlockDecl::FieldSet(fields))
             }
             TokenKind::CloseBrace => {
                 let fieldset = FieldSetDecl { fields: vec![] };
-                Ok(BlockDecl::FieldSetDecl(fieldset))
+                Ok(BlockDecl::FieldSet(fieldset))
             }
             _ => Err(unexpected_token(
                 discriminator,
@@ -148,14 +145,14 @@ impl<'a> Parser<'a> {
         self.pop(TokenKind::OpenBrace)?;
         let fields = self.field_set_decl(None)?;
         self.pop(TokenKind::CloseBrace)?;
-        Ok(BlockDecl::FieldSetDecl(fields))
+        Ok(BlockDecl::FieldSet(fields))
     }
 
     fn repeatable_decl(&mut self) -> Result<BlockDecl, SyntaxError> {
         self.pop(TokenKind::OpenBrace)?;
         let fields = self.field_set_decl(None)?;
         self.pop(TokenKind::CloseBrace)?;
-        Ok(BlockDecl::RepeatableDecl(fields))
+        Ok(BlockDecl::Repeatable(fields))
     }
 
     fn annotation_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {

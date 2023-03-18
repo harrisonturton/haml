@@ -13,8 +13,6 @@ pub trait Visitor {
 
     fn struct_decl(&mut self, _decl: &StructDecl) {}
 
-    fn union_decl(&mut self, _decl: &FieldSetDecl) {}
-
     fn repetable_decl(&mut self, _decl: &FieldSetDecl) {}
 
     fn alias_decl(&mut self, _decl: &AliasDecl) {}
@@ -30,6 +28,7 @@ pub trait Visitor {
     fn comment(&mut self, _stmt: &Comment) {}
 }
 
+#[allow(unused)]
 pub fn walk(ast: &Ast, visitor: &mut impl Visitor) {
     for stmt in ast.stmts.iter() {
         match stmt {
@@ -44,6 +43,7 @@ pub fn walk(ast: &Ast, visitor: &mut impl Visitor) {
     }
 }
 
+#[allow(unused)]
 fn constructor_decl(ast: &Ast, visitor: &mut impl Visitor, decl: &ConstructorDecl) {
     visitor.constructor_decl(decl);
     for annotation in &decl.annotations {
@@ -52,35 +52,34 @@ fn constructor_decl(ast: &Ast, visitor: &mut impl Visitor, decl: &ConstructorDec
     block_decl(ast, visitor, &decl.content);
 }
 
+#[allow(unused)]
 fn block_decl(ast: &Ast, visitor: &mut impl Visitor, decl: &BlockDecl) {
     match decl {
-        BlockDecl::UnionDecl(decl) => union_decl(ast, visitor, decl),
-        BlockDecl::AliasDecl(decl) => alias_decl(ast, visitor, decl),
-        BlockDecl::RepeatableDecl(decl) => repeatable_decl(ast, visitor, decl),
-        BlockDecl::FieldSetDecl(decl) => field_set_decl(ast, visitor, decl),
+        BlockDecl::Alias(decl) => alias_decl(ast, visitor, decl),
+        BlockDecl::Repeatable(decl) => repeatable_decl(ast, visitor, decl),
+        BlockDecl::FieldSet(decl) => field_set_decl(ast, visitor, decl),
     }
 }
 
-fn union_decl(ast: &Ast, visitor: &mut impl Visitor, field_set: &FieldSetDecl) {
-    visitor.union_decl(field_set);
-    field_set_decl(ast, visitor, field_set);
-}
-
-fn alias_decl(ast: &Ast, visitor: &mut impl Visitor, alias: &AliasDecl) {
+#[allow(unused)]
+fn alias_decl(_ast: &Ast, visitor: &mut impl Visitor, alias: &AliasDecl) {
     visitor.alias_decl(alias);
 }
 
+#[allow(unused)]
 fn repeatable_decl(ast: &Ast, visitor: &mut impl Visitor, field_set: &FieldSetDecl) {
     visitor.repetable_decl(field_set);
     field_set_decl(ast, visitor, field_set);
 }
 
+#[allow(unused)]
 fn field_set_decl(ast: &Ast, visitor: &mut impl Visitor, field_set: &FieldSetDecl) {
     for decl in field_set.fields.iter() {
         field_type_decl(ast, visitor, decl);
     }
 }
 
-fn field_type_decl(ast: &Ast, visitor: &mut impl Visitor, field: &FieldDecl) {
+#[allow(unused)]
+fn field_type_decl(_ast: &Ast, visitor: &mut impl Visitor, field: &FieldDecl) {
     visitor.field_decl(field);
 }

@@ -197,7 +197,7 @@ fn is_whitespace(ch: char) -> bool {
 
 /// Check if `ch` is a number between 0 and 9
 fn is_digit(ch: char) -> bool {
-    matches!(ch, '0'..='9')
+    ch.is_ascii_digit()
 }
 
 /// Check if `ch` is a valid first letter of an identifier

@@ -49,10 +49,9 @@ pub struct ConstructorDef {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BlockDecl {
-    UnionDecl(FieldSetDecl),
-    AliasDecl(AliasDecl),
-    RepeatableDecl(FieldSetDecl),
-    FieldSetDecl(FieldSetDecl),
+    Alias(AliasDecl),
+    Repeatable(FieldSetDecl),
+    FieldSet(FieldSetDecl),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
