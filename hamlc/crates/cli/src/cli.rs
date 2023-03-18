@@ -2,10 +2,10 @@ use clap::command;
 use clap::Parser;
 use std::path::PathBuf;
 
-use crate::error;
-use crate::error::format::{bold, green, red};
-use crate::semantic::check_can_resolve_symbols;
-use crate::syntax;
+use core::error;
+use core::error::format::{bold, green, red};
+use core::semantic::check_can_resolve_symbols;
+use core::syntax;
 
 #[derive(Parser)]
 #[command(bin_name = "haml", author = "Harrison Turton", version)]
