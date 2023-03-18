@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
     pub start: usize,
@@ -11,17 +11,9 @@ impl Token {
     pub fn new(kind: TokenKind, start: usize, len: usize) -> Token {
         Token { kind, start, len }
     }
-
-    pub fn eof(start: usize) -> Token {
-        Token {
-            kind: TokenKind::Eof,
-            len: 0,
-            start,
-        }
-    }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TokenKind {
     // Single or multi-line comments
     Comment,
@@ -91,8 +83,6 @@ pub enum TokenKind {
     Comma,
     // Period
     Period,
-    // Signals end of file
-    Eof,
 }
 
 impl Display for TokenKind {
@@ -132,7 +122,6 @@ impl Display for TokenKind {
             TokenKind::Comma => ",",
             TokenKind::Period => ".",
             TokenKind::Comment => "comment",
-            TokenKind::Eof => "eof",
         };
         write!(f, "{str}")
     }

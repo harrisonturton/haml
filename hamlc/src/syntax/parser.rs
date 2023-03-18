@@ -10,12 +10,11 @@ use crate::error::SyntaxError;
 /// Turns tokens into statements.
 #[derive(Debug)]
 pub struct Parser<'a> {
-    lexer: Lexer<'a>,
+    lexer: &'a mut Lexer<'a>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(input: &'a str) -> Parser<'a> {
-        let lexer = Lexer::new(input);
+    pub fn new(lexer: &'a mut Lexer<'a>) -> Parser<'a> {
         Parser { lexer }
     }
 
@@ -28,11 +27,15 @@ impl<'a> Parser<'a> {
             }
             stmts.push(stmt);
         }
-        Ok(Ast { stmts })
+        Ok(Ast { nodes: stmts })
     }
 
     pub fn advance(&mut self) -> Result<Node, SyntaxError> {
-        let token = self.advance_token()?;
+        let token = match self.lexer.advance()? {
+            Some(token) => token,
+            None => return Ok(Node::Eof),
+        };
+
         match token.kind {
             TokenKind::Package => self.package_stmt(),
             TokenKind::Import => self.import_stmt(),
@@ -41,7 +44,6 @@ impl<'a> Parser<'a> {
             TokenKind::Constructor => self.constructor_decl(vec![]),
             TokenKind::Annotation => self.annotation_decl(vec![]),
             TokenKind::Comment => Ok(Node::Comment(Comment { value: token })),
-            TokenKind::Eof => Ok(Node::Eof),
             _ => Err(unexpected_token(token, "a package, import or declaration")),
         }
     }
@@ -324,7 +326,11 @@ impl<'a> Parser<'a> {
     }
 
     fn advance_token(&mut self) -> Result<Token, SyntaxError> {
-        self.lexer.advance()
+        if let Some(token) = self.lexer.advance()? {
+            Ok(token)
+        } else {
+            Err(SyntaxError::UnexpectedEof)
+        }
     }
 }
 

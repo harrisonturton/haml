@@ -1,21 +1,20 @@
 use std::str::Chars;
 
-use super::token::{Token, TokenKind};
+use super::token::TokenKind;
+use super::Token;
 use crate::error::SyntaxError;
-
-pub const EOF_CHAR: char = '\0';
 
 /// Turns strings into tokens.
 #[derive(Debug)]
-pub struct Lexer<'a> {
+pub struct Lexer<'i> {
     pos: usize,
     len_remaining: usize,
-    chars: Chars<'a>,
-    input: &'a str,
+    chars: Chars<'i>,
+    input: &'i str,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Lexer<'a> {
+impl<'i> Lexer<'i> {
+    pub fn new(input: &'i str) -> Lexer<'i> {
         Lexer {
             pos: 0,
             len_remaining: input.len(),
@@ -24,11 +23,11 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn advance(&mut self) -> Result<Token, SyntaxError> {
+    pub fn advance(&mut self) -> Result<Option<Token>, SyntaxError> {
         loop {
             let ch = match self.bump() {
                 Some(ch) => ch,
-                None => return Ok(Token::eof(self.input.len())),
+                None => return Ok(None),
             };
 
             let kind = match ch {
@@ -51,25 +50,29 @@ impl<'a> Lexer<'a> {
                 '.' => TokenKind::Period,
                 '?' => TokenKind::QuestionMark,
                 '"' => self.string_literal()?,
-                '0'..='9' => self.number_literal(),
+                '0'..='9' => self.number_literal()?,
                 ch if is_id_head(ch) => self.ident_or_keyword(),
                 _ => return Err(SyntaxError::UnknownToken(ch)),
             };
 
-            let token = Token::new(kind, self.pos, self.pos_within_token());
+            let start = self.pos;
+            let len = self.pos_within_token();
+            let token = Token::new(kind, start, len);
+
             self.reset_pos_within_token();
-            self.pos += token.len;
-            return Ok(token);
+            self.pos += len;
+
+            return Ok(Some(token));
         }
     }
 
     fn comment(&mut self) -> Result<TokenKind, SyntaxError> {
-        let ch = self.first();
+        let ch = self.peek();
         match ch {
-            '/' => self.single_line_comment(),
-            '*' => self.multi_line_comment(),
-            EOF_CHAR => Ok(TokenKind::Eof),
-            _ => Err(SyntaxError::UnknownToken(ch)),
+            Some('/') => self.single_line_comment(),
+            Some('*') => self.multi_line_comment(),
+            Some(ch) => Err(SyntaxError::UnknownToken(ch)),
+            None => Err(SyntaxError::UnexpectedEof),
         }
     }
 
@@ -82,15 +85,15 @@ impl<'a> Lexer<'a> {
     fn multi_line_comment(&mut self) -> Result<TokenKind, SyntaxError> {
         self.bump();
         loop {
-            match self.first() {
-                '*' => {
+            match self.peek() {
+                Some('*') => {
                     self.bump();
-                    if self.first() == '/' {
+                    if self.peek() == Some('/') {
                         self.bump();
                         return Ok(TokenKind::Comment);
                     }
                 }
-                EOF_CHAR => return Err(SyntaxError::UnterminatedComment),
+                None => return Err(SyntaxError::UnterminatedComment),
                 _ => {
                     self.bump();
                 }
@@ -109,16 +112,16 @@ impl<'a> Lexer<'a> {
     }
 
     /// Consume a series of characters into a integer or float token
-    fn number_literal(&mut self) -> TokenKind {
+    fn number_literal(&mut self) -> Result<TokenKind, SyntaxError> {
         self.eat_while(is_digit);
-        match self.first() {
+        let ch = self.peek().ok_or(SyntaxError::UnexpectedEof)?;
+        match ch {
             '.' => {
                 self.bump();
                 self.eat_while(is_digit);
-                TokenKind::FloatLiteral
+                Ok(TokenKind::FloatLiteral)
             }
-            EOF_CHAR => TokenKind::Eof,
-            _ => TokenKind::IntLiteral,
+            _ => Ok(TokenKind::IntLiteral),
         }
     }
 
@@ -152,18 +155,9 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Peek the next value from the input stream without consuming it. If the
-    /// requested character doesn't exist, `EOF_CHAR` is returned. However
-    /// getting `EOF_CHAR` doesn't always mean it's reached the end of input,
-    /// this should be checked with `is_eof`.
-    fn first(&mut self) -> char {
+    fn peek(&mut self) -> Option<char> {
         // `next` optimises better than `.nth(0)`
-        self.chars.clone().next().unwrap_or(EOF_CHAR)
-    }
-
-    /// Checks if there is nothing more to consume.
-    fn is_eof(&self) -> bool {
-        self.chars.as_str().is_empty()
+        self.chars.clone().next()
     }
 
     /// Returns the number of already consumed symbols.
@@ -184,8 +178,12 @@ impl<'a> Lexer<'a> {
     /// Eat symbols while the predicate returns true or until end of file is
     /// reached.
     fn eat_while(&mut self, predicate: impl Fn(char) -> bool) {
-        while predicate(self.first()) && !self.is_eof() {
-            self.bump();
+        while let Some(ch) = self.peek() {
+            if predicate(ch) {
+                self.bump();
+            } else {
+                break;
+            }
         }
     }
 }

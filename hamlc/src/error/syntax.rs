@@ -5,6 +5,7 @@ use std::fmt::Display;
 #[derive(Debug)]
 pub enum SyntaxError {
     UnexpectedToken(Token, String),
+    UnexpectedEof,
     UnknownToken(char),
     UnterminatedString,
     UnterminatedComment,
@@ -18,6 +19,7 @@ impl Display for SyntaxError {
                 "Unexpected token: expected {msg} but found {:?}",
                 token.kind
             ),
+            SyntaxError::UnexpectedEof => write!(f, "Unexpected EOF"),
             SyntaxError::UnknownToken(ch) => write!(f, "Unknown token '{ch}'"),
             SyntaxError::UnterminatedString => write!(f, "Unterminated string"),
             SyntaxError::UnterminatedComment => write!(f, "Unterminated comment"),

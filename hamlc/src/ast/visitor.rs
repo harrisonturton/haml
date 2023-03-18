@@ -30,7 +30,7 @@ pub trait Visitor {
 
 #[allow(unused)]
 pub fn walk(ast: &Ast, visitor: &mut impl Visitor) {
-    for stmt in ast.stmts.iter() {
+    for stmt in ast.nodes.iter() {
         match stmt {
             Node::PackageStmt(stmt) => visitor.package(stmt),
             Node::ImportStmt(stmt) => visitor.import(stmt),

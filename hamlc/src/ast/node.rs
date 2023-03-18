@@ -2,7 +2,7 @@ use crate::syntax::Token;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast {
-    pub stmts: Vec<Node>,
+    pub nodes: Vec<Node>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
