@@ -2,11 +2,11 @@ use crate::syntax::Token;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast {
-    pub stmts: Vec<Stmt>,
+    pub stmts: Vec<Node>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Stmt {
+pub enum Node {
     Comment(Comment),
     PackageStmt(PackageStmt),
     ImportStmt(ImportStmt),

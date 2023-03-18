@@ -1,9 +1,8 @@
 use clap::command;
 use clap::Parser;
 
-use crate::error::SyntaxError;
+use crate::error;
 use crate::syntax;
-use crate::syntax::Token;
 
 #[derive(Parser)]
 #[command(bin_name = "haml", author = "Harrison Turton", version)]
@@ -41,7 +40,7 @@ pub fn main() {
     let ast = match parser.parse() {
         Ok(ast) => ast,
         Err(err) => {
-            printerr(input, err);
+            println!("{}", error::format(input, err));
             return;
         }
     };
@@ -49,40 +48,4 @@ pub fn main() {
     println!("{ast:?}");
 
     println!("Parsed successfully!");
-}
-
-fn printerr(input: &str, err: SyntaxError) {
-    match &err {
-        SyntaxError::UnexpectedToken(token, msg) => {
-            println!(
-                "Syntax error on line {}: expected {msg} but found \"{}\"",
-                get_token_loc(input, token),
-                get_span(input, token)
-            )
-        }
-        SyntaxError::UnknownToken(ch) => {
-            println!("Unknown token: {ch}");
-        }
-        SyntaxError::UnterminatedComment => {
-            println!("Unterminated comment");
-        }
-        SyntaxError::UnterminatedString => {
-            println!("Unterminated string");
-        }
-    }
-}
-
-fn get_token_loc(input: &str, token: &Token) -> u32 {
-    let mut pos = 0;
-    for (i, line) in input.lines().enumerate() {
-        pos = pos + line.len() + 1;
-        if pos >= token.start {
-            return i as u32;
-        }
-    }
-    panic!("could not find line number");
-}
-
-fn get_span<'a>(input: &'a str, token: &Token) -> &'a str {
-    &input[token.start..token.start + token.len]
 }

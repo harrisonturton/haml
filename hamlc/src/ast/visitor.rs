@@ -1,6 +1,6 @@
 use super::node::{
     AliasDecl, AnnotationDecl, Ast, BlockDecl, Comment, ConstructorDecl, FieldDecl, FieldSetDecl,
-    FieldType, ImportStmt, PackageStmt, Stmt, StructDecl,
+    FieldType, ImportStmt, Node, PackageStmt, StructDecl,
 };
 use crate::syntax::Token;
 
@@ -32,13 +32,13 @@ pub trait Visitor {
 pub fn walk(ast: &Ast, visitor: &mut impl Visitor) {
     for stmt in ast.stmts.iter() {
         match stmt {
-            Stmt::PackageStmt(stmt) => visitor.package(stmt),
-            Stmt::ImportStmt(stmt) => visitor.import(stmt),
-            Stmt::ConstructorDecl(stmt) => constructor_decl(ast, visitor, stmt),
-            Stmt::StructDecl(stmt) => visitor.struct_decl(stmt),
-            Stmt::AnnotationDecl(stmt) => visitor.annotation_decl(stmt),
-            Stmt::Comment(stmt) => visitor.comment(stmt),
-            Stmt::Eof => {}
+            Node::PackageStmt(stmt) => visitor.package(stmt),
+            Node::ImportStmt(stmt) => visitor.import(stmt),
+            Node::ConstructorDecl(stmt) => constructor_decl(ast, visitor, stmt),
+            Node::StructDecl(stmt) => visitor.struct_decl(stmt),
+            Node::AnnotationDecl(stmt) => visitor.annotation_decl(stmt),
+            Node::Comment(stmt) => visitor.comment(stmt),
+            Node::Eof => {}
         };
     }
 }

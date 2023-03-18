@@ -2,7 +2,7 @@ use super::lexer::Lexer;
 use super::token::{Token, TokenKind};
 use crate::ast::node::{
     AliasDecl, AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, Ast, BlockDecl, Comment,
-    ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl, PackageStmt, Stmt,
+    ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl, Node, PackageStmt,
     StructDecl,
 };
 use crate::error::SyntaxError;
@@ -23,7 +23,7 @@ impl<'a> Parser<'a> {
         let mut stmts = vec![];
         loop {
             let stmt = self.advance()?;
-            if stmt == Stmt::Eof {
+            if stmt == Node::Eof {
                 break;
             }
             stmts.push(stmt);
@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
         Ok(Ast { stmts })
     }
 
-    pub fn advance(&mut self) -> Result<Stmt, SyntaxError> {
+    pub fn advance(&mut self) -> Result<Node, SyntaxError> {
         let token = self.advance_token()?;
         match token.kind {
             TokenKind::Package => self.package_stmt(),
@@ -40,13 +40,13 @@ impl<'a> Parser<'a> {
             TokenKind::Struct => self.struct_decl(vec![]),
             TokenKind::Constructor => self.constructor_decl(vec![]),
             TokenKind::Annotation => self.annotation_decl(vec![]),
-            TokenKind::Comment => Ok(Stmt::Comment(Comment { value: token })),
-            TokenKind::Eof => Ok(Stmt::Eof),
+            TokenKind::Comment => Ok(Node::Comment(Comment { value: token })),
+            TokenKind::Eof => Ok(Node::Eof),
             _ => Err(unexpected_token(token, "a package, import or declaration")),
         }
     }
 
-    fn package_stmt(&mut self) -> Result<Stmt, SyntaxError> {
+    fn package_stmt(&mut self) -> Result<Node, SyntaxError> {
         let mut segments = vec![];
         loop {
             let segment = self.pop(TokenKind::Ident)?;
@@ -60,17 +60,17 @@ impl<'a> Parser<'a> {
             };
         }
         let stmt = PackageStmt { segments };
-        Ok(Stmt::PackageStmt(stmt))
+        Ok(Node::PackageStmt(stmt))
     }
 
-    fn import_stmt(&mut self) -> Result<Stmt, SyntaxError> {
+    fn import_stmt(&mut self) -> Result<Node, SyntaxError> {
         let path = self.pop(TokenKind::StringLiteral)?;
         self.pop(TokenKind::Semi)?;
         let stmt = ImportStmt { path };
-        Ok(Stmt::ImportStmt(stmt))
+        Ok(Node::ImportStmt(stmt))
     }
 
-    fn annotation_def(&mut self) -> Result<Stmt, SyntaxError> {
+    fn annotation_def(&mut self) -> Result<Node, SyntaxError> {
         let mut annotations = vec![];
         loop {
             let name = self.pop(TokenKind::Ident)?;
@@ -92,7 +92,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn struct_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {
+    fn struct_decl(&mut self, annotations: Vec<Token>) -> Result<Node, SyntaxError> {
         let name = self.pop(TokenKind::Ident)?;
         let content = self.block_decl()?;
         let stmt = StructDecl {
@@ -100,10 +100,10 @@ impl<'a> Parser<'a> {
             name,
             content,
         };
-        Ok(Stmt::StructDecl(stmt))
+        Ok(Node::StructDecl(stmt))
     }
 
-    fn constructor_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {
+    fn constructor_decl(&mut self, annotations: Vec<Token>) -> Result<Node, SyntaxError> {
         let name = self.pop(TokenKind::Ident)?;
         let content = self.block_decl()?;
         let stmt = ConstructorDecl {
@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
             name,
             content,
         };
-        Ok(Stmt::ConstructorDecl(stmt))
+        Ok(Node::ConstructorDecl(stmt))
     }
 
     fn block_decl(&mut self) -> Result<BlockDecl, SyntaxError> {
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
         Ok(BlockDecl::Repeatable(fields))
     }
 
-    fn annotation_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {
+    fn annotation_decl(&mut self, annotations: Vec<Token>) -> Result<Node, SyntaxError> {
         let name = self.pop(TokenKind::Ident)?;
         let fields = self.annotation_field_set_decl()?;
         let stmt = AnnotationDecl {
@@ -163,7 +163,7 @@ impl<'a> Parser<'a> {
             name,
             fields,
         };
-        Ok(Stmt::AnnotationDecl(stmt))
+        Ok(Node::AnnotationDecl(stmt))
     }
 
     // Set of nested key-value pairs inside two braces. `leading_ident` is provided
