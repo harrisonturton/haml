@@ -1,6 +1,7 @@
-use std::{fmt::Display, str::Chars};
+use std::str::Chars;
 
-use crate::token::{Token, TokenKind};
+use super::token::{Token, TokenKind};
+use crate::error::SyntaxError;
 
 pub const EOF_CHAR: char = '\0';
 
@@ -23,7 +24,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn advance(&mut self) -> TokenResult<Token> {
+    pub fn advance(&mut self) -> Result<Token, SyntaxError> {
         loop {
             let ch = match self.bump() {
                 Some(ch) => ch,
@@ -33,7 +34,7 @@ impl<'a> Lexer<'a> {
             let kind = match ch {
                 ch if is_whitespace(ch) => {
                     self.reset_pos_within_token();
-                    self.pos = self.pos + 1;
+                    self.pos += 1;
                     continue;
                 }
                 '(' => TokenKind::OpenParen,
@@ -52,33 +53,33 @@ impl<'a> Lexer<'a> {
                 '"' => self.string_literal()?,
                 '0'..='9' => self.number_literal(),
                 ch if is_id_head(ch) => self.ident_or_keyword(),
-                _ => return Err(TokenError::UnknownToken(ch)),
+                _ => return Err(SyntaxError::UnknownToken(ch)),
             };
 
             let token = Token::new(kind, self.pos, self.pos_within_token());
             self.reset_pos_within_token();
-            self.pos = self.pos + token.len;
+            self.pos += token.len;
             return Ok(token);
         }
     }
 
-    fn comment(&mut self) -> TokenResult<TokenKind> {
+    fn comment(&mut self) -> Result<TokenKind, SyntaxError> {
         let ch = self.first();
         match ch {
             '/' => self.single_line_comment(),
             '*' => self.multi_line_comment(),
             EOF_CHAR => Ok(TokenKind::Eof),
-            _ => return Err(TokenError::UnknownToken(ch)),
+            _ => Err(SyntaxError::UnknownToken(ch)),
         }
     }
 
-    fn single_line_comment(&mut self) -> TokenResult<TokenKind> {
+    fn single_line_comment(&mut self) -> Result<TokenKind, SyntaxError> {
         self.bump();
         self.eat_while(is_not_newline);
         Ok(TokenKind::Comment)
     }
 
-    fn multi_line_comment(&mut self) -> TokenResult<TokenKind> {
+    fn multi_line_comment(&mut self) -> Result<TokenKind, SyntaxError> {
         self.bump();
         loop {
             match self.first() {
@@ -89,7 +90,7 @@ impl<'a> Lexer<'a> {
                         return Ok(TokenKind::Comment);
                     }
                 }
-                EOF_CHAR => return Err(TokenError::UnterminatedComment),
+                EOF_CHAR => return Err(SyntaxError::UnterminatedComment),
                 _ => {
                     self.bump();
                 }
@@ -98,13 +99,13 @@ impl<'a> Lexer<'a> {
     }
 
     /// Consume a series of characters into a string token
-    fn string_literal(&mut self) -> TokenResult<TokenKind> {
+    fn string_literal(&mut self) -> Result<TokenKind, SyntaxError> {
         while let Some(ch) = self.bump() {
             if ch == '"' {
                 return Ok(TokenKind::StringLiteral);
             }
         }
-        Err(TokenError::UnterminatedString)
+        Err(SyntaxError::UnterminatedString)
     }
 
     /// Consume a series of characters into a integer or float token
@@ -196,10 +197,7 @@ fn is_whitespace(ch: char) -> bool {
 
 /// Check if `ch` is a number between 0 and 9
 fn is_digit(ch: char) -> bool {
-    match ch {
-        '0'..='9' => true,
-        _ => false,
-    }
+    matches!(ch, '0'..='9')
 }
 
 /// Check if `ch` is a valid first letter of an identifier
@@ -215,24 +213,3 @@ fn is_id_body(ch: char) -> bool {
 fn is_not_newline(ch: char) -> bool {
     ch != '\n'
 }
-
-pub type TokenResult<T> = Result<T, TokenError>;
-
-#[derive(Debug)]
-pub enum TokenError {
-    UnknownToken(char),
-    UnterminatedString,
-    UnterminatedComment,
-}
-
-impl Display for TokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TokenError::UnknownToken(ch) => write!(f, "Unknown token '{}'", ch),
-            TokenError::UnterminatedString => write!(f, "Unterminated string"),
-            TokenError::UnterminatedComment => write!(f, "Unterminated comment"),
-        }
-    }
-}
-
-impl std::error::Error for TokenError {}

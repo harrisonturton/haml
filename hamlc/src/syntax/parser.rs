@@ -1,12 +1,11 @@
-use crate::{
-    ast::{
-        AliasDecl, AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, Ast, BlockDecl,
-        Comment, ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl,
-        PackageStmt, Stmt, StructDecl,
-    },
-    lexer::{Lexer, TokenError},
-    token::{Token, TokenKind},
+use super::lexer::Lexer;
+use super::token::{Token, TokenKind};
+use crate::ast::node::{
+    AliasDecl, AnnotationDecl, AnnotationFieldDecl, AnnotationFieldValue, Ast, BlockDecl, Comment,
+    ConstructorDecl, FieldDecl, FieldSetDecl, FieldType, ImportStmt, MapDecl, PackageStmt, Stmt,
+    StructDecl,
 };
+use crate::error::SyntaxError;
 
 /// Turns tokens into statements.
 #[derive(Debug)]
@@ -23,7 +22,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Ast<'a>> {
+    pub fn parse(&mut self) -> Result<Ast, SyntaxError> {
         let mut stmts = vec![];
         loop {
             let stmt = self.advance()?;
@@ -32,13 +31,10 @@ impl<'a> Parser<'a> {
             }
             stmts.push(stmt);
         }
-        Ok(Ast {
-            input: self.input,
-            stmts,
-        })
+        Ok(Ast { stmts })
     }
 
-    pub fn advance(&mut self) -> ParseResult<Stmt> {
+    pub fn advance(&mut self) -> Result<Stmt, SyntaxError> {
         let token = self.advance_token()?;
         match token.kind {
             TokenKind::Package => self.package_stmt(),
@@ -49,11 +45,11 @@ impl<'a> Parser<'a> {
             TokenKind::Annotation => self.annotation_decl(vec![]),
             TokenKind::Comment => Ok(Stmt::Comment(Comment { value: token })),
             TokenKind::Eof => Ok(Stmt::Eof),
-            _ => return Err(unexpected_token(token, "a package, import or declaration")),
+            _ => Err(unexpected_token(token, "a package, import or declaration")),
         }
     }
 
-    fn package_stmt(&mut self) -> ParseResult<Stmt> {
+    fn package_stmt(&mut self) -> Result<Stmt, SyntaxError> {
         let mut segments = vec![];
         loop {
             let segment = self.pop(TokenKind::Ident)?;
@@ -70,14 +66,14 @@ impl<'a> Parser<'a> {
         Ok(Stmt::PackageStmt(stmt))
     }
 
-    fn import_stmt(&mut self) -> ParseResult<Stmt> {
+    fn import_stmt(&mut self) -> Result<Stmt, SyntaxError> {
         let path = self.pop(TokenKind::StringLiteral)?;
         self.pop(TokenKind::Semi)?;
         let stmt = ImportStmt { path };
         Ok(Stmt::ImportStmt(stmt))
     }
 
-    fn annotation_def(&mut self) -> ParseResult<Stmt> {
+    fn annotation_def(&mut self) -> Result<Stmt, SyntaxError> {
         let mut annotations = vec![];
         loop {
             let name = self.pop(TokenKind::Ident)?;
@@ -99,7 +95,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn struct_decl(&mut self, annotations: Vec<Token>) -> ParseResult<Stmt> {
+    fn struct_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {
         let name = self.pop(TokenKind::Ident)?;
         let content = self.block_decl()?;
         let stmt = StructDecl {
@@ -110,7 +106,7 @@ impl<'a> Parser<'a> {
         Ok(Stmt::StructDecl(stmt))
     }
 
-    fn constructor_decl(&mut self, annotations: Vec<Token>) -> ParseResult<Stmt> {
+    fn constructor_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {
         let name = self.pop(TokenKind::Ident)?;
         let content = self.block_decl()?;
         let stmt = ConstructorDecl {
@@ -121,7 +117,7 @@ impl<'a> Parser<'a> {
         Ok(Stmt::ConstructorDecl(stmt))
     }
 
-    fn block_decl(&mut self) -> ParseResult<BlockDecl> {
+    fn block_decl(&mut self) -> Result<BlockDecl, SyntaxError> {
         self.pop(TokenKind::OpenBrace)?;
         let discriminator = self.advance_token()?;
         match discriminator.kind {
@@ -141,30 +137,28 @@ impl<'a> Parser<'a> {
                 let fieldset = FieldSetDecl { fields: vec![] };
                 Ok(BlockDecl::FieldSetDecl(fieldset))
             }
-            _ => {
-                return Err(unexpected_token(
-                    discriminator,
-                    "union, repeatable or an identifier",
-                ))
-            }
+            _ => Err(unexpected_token(
+                discriminator,
+                "union, repeatable or an identifier",
+            )),
         }
     }
 
-    fn union_decl(&mut self) -> ParseResult<BlockDecl> {
+    fn union_decl(&mut self) -> Result<BlockDecl, SyntaxError> {
         self.pop(TokenKind::OpenBrace)?;
         let fields = self.field_set_decl(None)?;
         self.pop(TokenKind::CloseBrace)?;
         Ok(BlockDecl::FieldSetDecl(fields))
     }
 
-    fn repeatable_decl(&mut self) -> ParseResult<BlockDecl> {
+    fn repeatable_decl(&mut self) -> Result<BlockDecl, SyntaxError> {
         self.pop(TokenKind::OpenBrace)?;
         let fields = self.field_set_decl(None)?;
         self.pop(TokenKind::CloseBrace)?;
         Ok(BlockDecl::RepeatableDecl(fields))
     }
 
-    fn annotation_decl(&mut self, annotations: Vec<Token>) -> ParseResult<Stmt> {
+    fn annotation_decl(&mut self, annotations: Vec<Token>) -> Result<Stmt, SyntaxError> {
         let name = self.pop(TokenKind::Ident)?;
         let fields = self.annotation_field_set_decl()?;
         let stmt = AnnotationDecl {
@@ -178,7 +172,10 @@ impl<'a> Parser<'a> {
     // Set of nested key-value pairs inside two braces. `leading_ident` is provided
     // so block_decl can call field_set_decl if it encounters a identifier. The
     // lexer doesn't support peeking so we have to work without this lookahead.
-    fn field_set_decl(&mut self, leading_ident: Option<Token>) -> ParseResult<FieldSetDecl> {
+    fn field_set_decl(
+        &mut self,
+        leading_ident: Option<Token>,
+    ) -> Result<FieldSetDecl, SyntaxError> {
         let mut fields = vec![];
 
         if let Some(name) = leading_ident {
@@ -235,7 +232,7 @@ impl<'a> Parser<'a> {
         Ok(decl)
     }
 
-    fn field_value(&mut self) -> ParseResult<FieldType> {
+    fn field_value(&mut self) -> Result<FieldType, SyntaxError> {
         let token = self.advance_token()?;
         let field_value = match token.kind {
             TokenKind::Ident => FieldType::Ident(token),
@@ -259,7 +256,7 @@ impl<'a> Parser<'a> {
 
     // Set of key-value pairs within two braces that cannot be nested and can only
     // be strings or numbers
-    fn annotation_field_set_decl(&mut self) -> ParseResult<Vec<AnnotationFieldDecl>> {
+    fn annotation_field_set_decl(&mut self) -> Result<Vec<AnnotationFieldDecl>, SyntaxError> {
         self.pop(TokenKind::OpenBrace)?;
 
         let mut fields = vec![];
@@ -296,7 +293,7 @@ impl<'a> Parser<'a> {
         Ok(fields)
     }
 
-    fn annotation_field_value(&mut self) -> ParseResult<AnnotationFieldValue> {
+    fn annotation_field_value(&mut self) -> Result<AnnotationFieldValue, SyntaxError> {
         let token = self.advance_token()?;
         let field_value = match token.kind {
             TokenKind::String => AnnotationFieldValue::String(token),
@@ -311,7 +308,7 @@ impl<'a> Parser<'a> {
         Ok(field_value)
     }
 
-    fn map_decl(&mut self) -> ParseResult<MapDecl> {
+    fn map_decl(&mut self) -> Result<MapDecl, SyntaxError> {
         self.pop(TokenKind::OpenChevron)?;
         let key = self.field_value()?;
         self.pop(TokenKind::Comma)?;
@@ -320,43 +317,20 @@ impl<'a> Parser<'a> {
         Ok(MapDecl { key, value })
     }
 
-    fn pop(&mut self, kind: TokenKind) -> ParseResult<Token> {
+    fn pop(&mut self, kind: TokenKind) -> Result<Token, SyntaxError> {
         let token = self.advance_token()?;
         if token.kind == kind {
             Ok(token)
         } else {
-            Err(unexpected_token(token, &format!("{}", kind)))
+            Err(unexpected_token(token, &format!("{kind}")))
         }
     }
 
-    fn advance_token(&mut self) -> ParseResult<Token> {
-        self.lexer.advance().map_err(ParseError::TokenError)
+    fn advance_token(&mut self) -> Result<Token, SyntaxError> {
+        self.lexer.advance()
     }
 }
 
-fn unexpected_token(actual: Token, msg: &str) -> ParseError {
-    ParseError::UnexpectedToken(actual, msg.to_owned())
+fn unexpected_token(actual: Token, msg: &str) -> SyntaxError {
+    SyntaxError::UnexpectedToken(actual, msg.to_owned())
 }
-
-pub type ParseResult<T> = Result<T, ParseError>;
-
-#[derive(Debug)]
-pub enum ParseError {
-    UnexpectedToken(Token, String),
-    TokenError(TokenError),
-}
-
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseError::UnexpectedToken(token, msg) => write!(
-                f,
-                "Unexpected token: expected {} but found {:?}",
-                msg, token.kind
-            ),
-            ParseError::TokenError(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl std::error::Error for ParseError {}

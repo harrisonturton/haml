@@ -134,6 +134,6 @@ impl Display for TokenKind {
             TokenKind::Comment => "comment",
             TokenKind::Eof => "eof",
         };
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
