@@ -2,7 +2,7 @@ use crate::syntax::Token;
 use std::error::Error;
 use std::fmt::Display;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SyntaxError {
     UnexpectedToken(Token, String),
     UnexpectedEof,
