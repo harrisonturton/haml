@@ -1,3 +1,6 @@
+#![warn(clippy::all)]
+#![feature(is_some_and)]
+
 pub mod ast;
 pub mod db;
 pub mod diagnostics;

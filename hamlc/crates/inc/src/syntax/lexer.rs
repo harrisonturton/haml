@@ -1,8 +1,7 @@
 use std::str::Chars;
 
-use crate::{diagnostics::Emitter, span::Span};
-
 use super::{parser::ParseSession, Token, TokenKind};
+use crate::{diagnostics::Emitter, span::Span};
 
 pub struct Lexer<'db> {
     sess: &'db ParseSession<'db>,
@@ -22,7 +21,7 @@ impl<'db> Lexer<'db> {
     }
 
     pub fn advance(&mut self) -> Option<Token> {
-        match self.bump_ignore_whitespace()? {
+        match self.bump_ignoring_whitespace()? {
             '"' => self.string_literal(),
             '0'..='9' => self.numeric_literal(),
             ch if is_id_head(ch) => self.ident_or_keyword(),
@@ -125,20 +124,13 @@ impl<'db> Lexer<'db> {
     }
 
     fn span(&self) -> Span {
-        let start = self.token_start();
-        let end = self.token_end();
+        let text_len = self.sess.text().len();
+        let start = text_len - self.len_remaining;
+        let end = text_len - self.chars.as_str().len();
         Span::new(start, end, self.sess.file)
     }
 
-    fn token_start(&self) -> usize {
-        self.sess.text().len() - self.len_remaining
-    }
-
-    fn token_end(&self) -> usize {
-        self.sess.text().len() - self.chars.as_str().len()
-    }
-
-    fn peek(&mut self) -> Option<char> {
+    fn peek(&self) -> Option<char> {
         self.chars.clone().next()
     }
 
@@ -146,7 +138,7 @@ impl<'db> Lexer<'db> {
         self.chars.next()
     }
 
-    fn bump_ignore_whitespace(&mut self) -> Option<char> {
+    fn bump_ignoring_whitespace(&mut self) -> Option<char> {
         while let Some(ch) = self.bump() {
             if is_whitespace(ch) {
                 self.eat();
@@ -158,12 +150,8 @@ impl<'db> Lexer<'db> {
     }
 
     fn bump_while(&mut self, predicate: impl Fn(char) -> bool) {
-        while let Some(ch) = self.peek() {
-            if predicate(ch) {
-                self.bump();
-            } else {
-                break;
-            }
+        while self.peek().is_some_and(&predicate) {
+            self.bump();
         }
     }
 }

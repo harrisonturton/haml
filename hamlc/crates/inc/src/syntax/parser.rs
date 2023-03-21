@@ -1,6 +1,6 @@
 use derive_new::new;
 
-use crate::diagnostics::{DiagnosticEmitter, Emitter};
+use crate::diagnostics::Emitter;
 use crate::queries::SourceFile;
 use crate::span::Span;
 use crate::Db;
@@ -57,7 +57,7 @@ impl<'i> Parser<'i> {
     }
 
     pub fn advance(&mut self) -> Option<Node> {
-        let token = match self.lexer.advance() {
+        let token = match self.advance_token() {
             Some(token) => token,
             None => return Some(Node::Eof),
         };
