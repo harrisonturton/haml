@@ -8,4 +8,3 @@ edition = "2021"
 [dependencies]
 core = { path = "../core" }
 clap = { version = "4.1.8", features = ["derive"] }
-inc = { path = "../inc" }

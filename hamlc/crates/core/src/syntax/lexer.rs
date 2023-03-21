@@ -1,139 +1,56 @@
 use std::str::Chars;
 
-use super::token::TokenKind;
-use super::Token;
-use crate::error::SyntaxError;
+use super::{parser::ParseSession, Token, TokenKind};
+use crate::{diagnostics::Emitter, span::Span};
 
-/// Turns strings into tokens.
-#[derive(Debug)]
-pub struct Lexer<'i> {
-    pos: usize,
+pub struct Lexer<'db> {
+    sess: &'db ParseSession<'db>,
+    emitter: &'db dyn Emitter,
+    chars: Chars<'db>,
     len_remaining: usize,
-    chars: Chars<'i>,
-    input: &'i str,
 }
 
-impl<'i> Lexer<'i> {
-    pub fn new(input: &'i str) -> Lexer<'i> {
+impl<'db> Lexer<'db> {
+    pub fn new(sess: &'db ParseSession<'db>, emitter: &'db dyn Emitter) -> Lexer<'db> {
         Lexer {
-            pos: 0,
-            len_remaining: input.len(),
-            chars: input.chars(),
-            input,
+            sess,
+            emitter,
+            chars: sess.text().chars(),
+            len_remaining: sess.text().len(),
         }
     }
 
-    pub fn advance(&mut self) -> Result<Option<Token>, SyntaxError> {
-        loop {
-            let ch = match self.bump() {
-                Some(ch) => ch,
-                None => return Ok(None),
-            };
-
-            let kind = match ch {
-                ch if is_whitespace(ch) => {
-                    self.reset_pos_within_token();
-                    self.pos += 1;
-                    continue;
-                }
-                '(' => TokenKind::OpenParen,
-                ')' => TokenKind::CloseParen,
-                '{' => TokenKind::OpenBrace,
-                '}' => TokenKind::CloseBrace,
-                '<' => TokenKind::OpenChevron,
-                '>' => TokenKind::CloseChevron,
-                ':' => TokenKind::Colon,
-                ';' => TokenKind::Semi,
-                ',' => TokenKind::Comma,
-                '/' => self.comment()?,
-                '@' => TokenKind::At,
-                '.' => TokenKind::Period,
-                '?' => TokenKind::QuestionMark,
-                '"' => self.string_literal()?,
-                '0'..='9' => self.number_literal()?,
-                ch if is_id_head(ch) => self.ident_or_keyword(),
-                _ => return Err(SyntaxError::UnknownToken(ch)),
-            };
-
-            let start = self.pos;
-            let len = self.pos_within_token();
-            let token = Token::new(kind, start, len);
-
-            self.reset_pos_within_token();
-            self.pos += len;
-
-            return Ok(Some(token));
+    pub fn advance(&mut self) -> Option<Token> {
+        match self.bump_ignoring_whitespace()? {
+            '"' => self.string_literal(),
+            '0'..='9' => self.numeric_literal(),
+            ch if is_id_head(ch) => self.ident_or_keyword(),
+            _ => self.reserved_char(),
         }
     }
 
-    fn comment(&mut self) -> Result<TokenKind, SyntaxError> {
-        let ch = self.peek();
-        match ch {
-            Some('/') => self.single_line_comment(),
-            Some('*') => self.multi_line_comment(),
-            Some(ch) => Err(SyntaxError::UnknownToken(ch)),
-            None => Err(SyntaxError::UnexpectedEof),
-        }
-    }
+    fn string_literal(&mut self) -> Option<Token> {
+        self.bump_while(|ch| ch != '"');
 
-    fn single_line_comment(&mut self) -> Result<TokenKind, SyntaxError> {
+        if let None = self.peek() {
+            let token = self.eat_and_advance(TokenKind::StringLiteral);
+            self.emitter.emit_unterminated_string(token);
+            return None;
+        }
+
         self.bump();
-        self.eat_while(is_not_newline);
-        Ok(TokenKind::Comment)
+        let token = self.eat_and_advance(TokenKind::StringLiteral);
+        Some(token)
     }
 
-    fn multi_line_comment(&mut self) -> Result<TokenKind, SyntaxError> {
-        self.bump();
-        loop {
-            match self.peek() {
-                Some('*') => {
-                    self.bump();
-                    if self.peek() == Some('/') {
-                        self.bump();
-                        return Ok(TokenKind::Comment);
-                    }
-                }
-                None => return Err(SyntaxError::UnterminatedComment),
-                _ => {
-                    self.bump();
-                }
-            }
-        }
-    }
+    fn ident_or_keyword(&mut self) -> Option<Token> {
+        self.bump_while(is_id_body);
 
-    /// Consume a series of characters into a string token
-    fn string_literal(&mut self) -> Result<TokenKind, SyntaxError> {
-        while let Some(ch) = self.bump() {
-            if ch == '"' {
-                return Ok(TokenKind::StringLiteral);
-            }
-        }
-        Err(SyntaxError::UnterminatedString)
-    }
+        let span = self.span();
+        let text = self.sess.text();
+        let span_text = &text[span.start..span.end];
 
-    /// Consume a series of characters into a integer or float token
-    fn number_literal(&mut self) -> Result<TokenKind, SyntaxError> {
-        self.eat_while(is_digit);
-        let ch = self.peek().ok_or(SyntaxError::UnexpectedEof)?;
-        match ch {
-            '.' => {
-                self.bump();
-                self.eat_while(is_digit);
-                Ok(TokenKind::FloatLiteral)
-            }
-            _ => Ok(TokenKind::IntLiteral),
-        }
-    }
-
-    /// Consume a series of characters into an identifier token
-    fn ident_or_keyword(&mut self) -> TokenKind {
-        self.eat_while(is_id_body);
-
-        let start = self.pos;
-        let end = start + self.pos_within_token();
-        let span = &self.input[self.pos..end];
-
-        match span {
+        let kind = match span_text {
             "import" => TokenKind::Import,
             "package" => TokenKind::Package,
             "constructor" => TokenKind::Constructor,
@@ -152,62 +69,108 @@ impl<'i> Lexer<'i> {
             "float64" => TokenKind::Float64,
             "string" => TokenKind::String,
             _ => TokenKind::Ident,
+        };
+
+        let token = self.eat_and_advance(kind);
+        Some(token)
+    }
+
+    fn numeric_literal(&mut self) -> Option<Token> {
+        self.bump_while(is_digit);
+
+        if let Some('.') = self.peek() {
+            self.bump();
+            self.bump_while(is_digit);
+            let token = self.eat_and_advance(TokenKind::FloatLiteral);
+            return Some(token);
         }
+
+        let token = self.eat_and_advance(TokenKind::IntLiteral);
+        Some(token)
     }
 
-    fn peek(&mut self) -> Option<char> {
-        // `next` optimises better than `.nth(0)`
-        self.chars.clone().next()
+    fn reserved_char(&mut self) -> Option<Token> {
+        let span = self.span();
+        let text = self.sess.text();
+        let span_text = &text[span.start..span.end];
+
+        let kind = match span_text {
+            "(" => TokenKind::OpenParen,
+            ")" => TokenKind::CloseParen,
+            "{" => TokenKind::OpenBrace,
+            "}" => TokenKind::CloseBrace,
+            "<" => TokenKind::OpenChevron,
+            ">" => TokenKind::CloseChevron,
+            ":" => TokenKind::Colon,
+            ";" => TokenKind::Semi,
+            "," => TokenKind::Comma,
+            "@" => TokenKind::At,
+            "." => TokenKind::Period,
+            "?" => TokenKind::QuestionMark,
+            _ => TokenKind::Invalid,
+        };
+
+        Some(self.eat_and_advance(kind))
     }
 
-    /// Returns the number of already consumed symbols.
-    fn pos_within_token(&self) -> usize {
-        self.len_remaining - self.chars.as_str().len()
+    fn eat_and_advance(&mut self, kind: TokenKind) -> Token {
+        let span = self.span();
+        self.eat();
+        Token::new(kind, span)
     }
 
-    /// Resets the number of bytes consumed to be `0`.
-    fn reset_pos_within_token(&mut self) {
+    fn eat(&mut self) {
         self.len_remaining = self.chars.as_str().len();
     }
 
-    /// Move to the next character.
+    fn span(&self) -> Span {
+        let text_len = self.sess.text().len();
+        let start = text_len - self.len_remaining;
+        let end = text_len - self.chars.as_str().len();
+        Span::new(start, end, self.sess.file)
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.chars.clone().next()
+    }
+
     fn bump(&mut self) -> Option<char> {
         self.chars.next()
     }
 
-    /// Eat symbols while the predicate returns true or until end of file is
-    /// reached.
-    fn eat_while(&mut self, predicate: impl Fn(char) -> bool) {
-        while let Some(ch) = self.peek() {
-            if predicate(ch) {
-                self.bump();
-            } else {
-                break;
+    fn bump_ignoring_whitespace(&mut self) -> Option<char> {
+        while let Some(ch) = self.bump() {
+            if is_whitespace(ch) {
+                self.eat();
+                continue;
             }
+            return Some(ch);
+        }
+        None
+    }
+
+    fn bump_while(&mut self, predicate: impl Fn(char) -> bool) {
+        while self.peek().is_some_and(&predicate) {
+            self.bump();
         }
     }
 }
 
-/// Check if `ch` is Ascii whitespace or a control character
-fn is_whitespace(ch: char) -> bool {
-    ch.is_ascii_whitespace() || ch.is_ascii_control()
-}
-
-/// Check if `ch` is a number between 0 and 9
+// Check if `ch` is a number between 0 and 9
 fn is_digit(ch: char) -> bool {
     ch.is_ascii_digit()
 }
 
-/// Check if `ch` is a valid first letter of an identifier
+// Check if `ch` is a valid first letter of an identifier
 fn is_id_head(ch: char) -> bool {
-    ch.is_ascii_alphabetic() && !is_whitespace(ch)
+    ch.is_ascii_alphabetic() || ch == '_'
 }
 
 // Check if `ch` is a valid nth letter of an identifier
 fn is_id_body(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() && !is_whitespace(ch)
+    ch.is_ascii_alphanumeric() || ch == '_'
 }
 
-fn is_not_newline(ch: char) -> bool {
-    ch != '\n'
+fn is_whitespace(ch: char) -> bool {
+    ch.is_ascii_whitespace()
 }

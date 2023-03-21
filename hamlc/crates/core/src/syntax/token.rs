@@ -1,22 +1,15 @@
+use crate::span::Span;
+use derive_new::new;
 use std::fmt::Display;
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(new, Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub start: usize,
-    pub len: usize,
-}
-
-impl Token {
-    pub fn new(kind: TokenKind, start: usize, len: usize) -> Token {
-        Token { kind, start, len }
-    }
+    pub span: Span,
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TokenKind {
-    // Single or multi-line comments
-    Comment,
     // package
     Package,
     // import
@@ -83,6 +76,8 @@ pub enum TokenKind {
     Comma,
     // Period
     Period,
+    // Any charactor in the wrong place, or bad character
+    Invalid,
 }
 
 impl Display for TokenKind {
@@ -121,7 +116,7 @@ impl Display for TokenKind {
             TokenKind::Semi => ";",
             TokenKind::Comma => ",",
             TokenKind::Period => ".",
-            TokenKind::Comment => "comment",
+            TokenKind::Invalid => "invalid token",
         };
         write!(f, "{str}")
     }

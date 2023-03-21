@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use clap::command;
 use clap::Parser;
 
-use inc::db::Database;
-use inc::diagnostics::Diagnostics;
-use inc::queries::{parse_file, read_file, Path};
+use core::db::Database;
+use core::diagnostics::Diagnostics;
+use core::queries::{parse_file, read_file, Path};
 
 #[derive(Parser)]
 #[command(bin_name = "haml", author = "Harrison Turton", version)]

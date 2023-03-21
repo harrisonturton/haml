@@ -2,5 +2,4 @@
 members = [
   "crates/cli",
   "crates/core",
-  "crates/inc",
 ]
