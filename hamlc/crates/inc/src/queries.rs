@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::ast::Ast;
+use crate::diagnostics::DiagnosticEmitter;
 use crate::span::Span;
 use crate::syntax::{Lexer, Parser, Token};
 
@@ -39,8 +40,9 @@ pub fn read_file(db: &dyn crate::Db, path: Path) -> Option<SourceFile> {
 /// Turn a file into an AST
 #[salsa::tracked]
 pub fn parse_file(db: &dyn crate::Db, file: SourceFile) -> Option<Ast> {
-    let mut lexer = Lexer::new(db, file);
-    let mut parser = Parser::new(db, &mut lexer);
+    let diagnostics = DiagnosticEmitter::new(db);
+    let mut lexer = Lexer::new(diagnostics, db, file);
+    let mut parser = Parser::new(diagnostics, &mut lexer);
     parser.parse()
 }
 

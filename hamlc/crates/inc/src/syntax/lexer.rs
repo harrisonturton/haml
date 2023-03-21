@@ -1,8 +1,9 @@
 use std::str::Chars;
 
+use crate::diagnostics::DiagnosticEmitter;
 use crate::queries::SourceFile;
 use crate::span::Span;
-use crate::{diagnostics, Db};
+use crate::Db;
 
 use super::token::TokenKind;
 use super::Token;
@@ -13,11 +14,12 @@ pub struct Lexer<'i> {
     len_remaining: usize,
     chars: Chars<'i>,
     file: SourceFile,
+    diagnostics: DiagnosticEmitter<'i>,
     db: &'i dyn Db,
 }
 
 impl<'i> Lexer<'i> {
-    pub fn new(db: &'i dyn Db, file: SourceFile) -> Lexer<'i> {
+    pub fn new(diagnostics: DiagnosticEmitter<'i>, db: &'i dyn Db, file: SourceFile) -> Lexer<'i> {
         let text = file.text(db);
         Lexer {
             pos: 0,
@@ -25,6 +27,7 @@ impl<'i> Lexer<'i> {
             chars: text.chars(),
             file,
             db,
+            diagnostics,
         }
     }
 
@@ -72,7 +75,7 @@ impl<'i> Lexer<'i> {
             }
         }
         let token = self.get_token_and_reset(TokenKind::StringLiteral);
-        diagnostics::emit_unterminated_string(self.db, token);
+        self.diagnostics.emit_unterminated_string(token);
         None
     }
 
@@ -81,7 +84,7 @@ impl<'i> Lexer<'i> {
         let terminated = self.eat_while(is_digit);
         if terminated {
             let token = self.get_token_and_reset(TokenKind::IntLiteral);
-            diagnostics::emit_unexpected_eof(self.db, token);
+            self.diagnostics.emit_unexpected_eof(token);
             return None;
         }
 
@@ -89,7 +92,7 @@ impl<'i> Lexer<'i> {
             Some(ch) => ch,
             None => {
                 let token = self.get_token_and_reset(TokenKind::IntLiteral);
-                diagnostics::emit_unexpected_eof(self.db, token);
+                self.diagnostics.emit_unexpected_eof(token);
                 return None;
             }
         };

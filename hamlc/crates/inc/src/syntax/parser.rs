@@ -1,4 +1,4 @@
-use crate::{diagnostics, Db};
+use crate::diagnostics::DiagnosticEmitter;
 
 use super::lexer::Lexer;
 use super::token::{Token, TokenKind};
@@ -10,13 +10,13 @@ use crate::ast::node::{
 
 /// Turns tokens into statements.
 pub struct Parser<'i> {
-    db: &'i dyn Db,
+    diagnostics: DiagnosticEmitter<'i>,
     lexer: &'i mut Lexer<'i>,
 }
 
 impl<'i> Parser<'i> {
-    pub fn new(db: &'i dyn Db, lexer: &'i mut Lexer<'i>) -> Parser<'i> {
-        Parser { db, lexer }
+    pub fn new(diagnostics: DiagnosticEmitter<'i>, lexer: &'i mut Lexer<'i>) -> Parser<'i> {
+        Parser { diagnostics, lexer }
     }
 
     pub fn parse(&mut self) -> Option<Ast> {
@@ -44,11 +44,8 @@ impl<'i> Parser<'i> {
             TokenKind::Constructor => self.constructor_decl(vec![]),
             TokenKind::Annotation => self.annotation_decl(vec![]),
             _ => {
-                diagnostics::emit_unexpected_token(
-                    self.db,
-                    token,
-                    "a package, import or declaration",
-                );
+                self.diagnostics
+                    .emit_unexpected_token(token, "a package, import or declaration");
                 None
             }
         }
@@ -65,7 +62,8 @@ impl<'i> Parser<'i> {
                 TokenKind::Period => continue,
                 TokenKind::Semi => break,
                 _ => {
-                    diagnostics::emit_unexpected_token(self.db, token, "period or semicolon");
+                    self.diagnostics
+                        .emit_unexpected_token(token, "period or semicolon");
                     return None;
                 }
             };
@@ -94,11 +92,8 @@ impl<'i> Parser<'i> {
                 TokenKind::Struct => return self.struct_decl(annotations),
                 TokenKind::Annotation => return self.annotation_decl(annotations),
                 _ => {
-                    diagnostics::emit_unexpected_token(
-                        self.db,
-                        token,
-                        "an annotation, constructor or struct",
-                    );
+                    self.diagnostics
+                        .emit_unexpected_token(token, "an annotation, constructor or struct");
                     return None;
                 }
             };
@@ -148,11 +143,8 @@ impl<'i> Parser<'i> {
                 Some(BlockDecl::FieldSet(fieldset))
             }
             _ => {
-                diagnostics::emit_unexpected_token(
-                    self.db,
-                    discriminator,
-                    "union, repeatable or an identifier",
-                );
+                self.diagnostics
+                    .emit_unexpected_token(discriminator, "union, repeatable or an identifier");
                 return None;
             }
         }
@@ -199,7 +191,8 @@ impl<'i> Parser<'i> {
                 }
                 TokenKind::Colon => {}
                 _ => {
-                    diagnostics::emit_unexpected_token(self.db, token, "a question mark or colon");
+                    self.diagnostics
+                        .emit_unexpected_token(token, "a question mark or colon");
                     return None;
                 }
             };
@@ -219,11 +212,8 @@ impl<'i> Parser<'i> {
                 TokenKind::CloseBrace => break,
                 TokenKind::Ident => {}
                 _ => {
-                    diagnostics::emit_unexpected_token(
-                        self.db,
-                        token,
-                        "a closing brace or identifier",
-                    );
+                    self.diagnostics
+                        .emit_unexpected_token(token, "a closing brace or identifier");
                     return None;
                 }
             };
@@ -237,7 +227,8 @@ impl<'i> Parser<'i> {
                 }
                 TokenKind::Colon => {}
                 _ => {
-                    diagnostics::emit_unexpected_token(self.db, token, "question mark or colon");
+                    self.diagnostics
+                        .emit_unexpected_token(token, "question mark or colon");
                     return None;
                 }
             };
@@ -274,7 +265,8 @@ impl<'i> Parser<'i> {
                 FieldType::Map(Box::new(decl))
             }
             _ => {
-                diagnostics::emit_unexpected_token(self.db, token, "a field value type");
+                self.diagnostics
+                    .emit_unexpected_token(token, "a field value type");
                 return None;
             }
         };
@@ -294,11 +286,8 @@ impl<'i> Parser<'i> {
                 TokenKind::CloseBrace => break,
                 TokenKind::Ident => {}
                 _ => {
-                    diagnostics::emit_unexpected_token(
-                        self.db,
-                        token,
-                        "closing brace or identifier",
-                    );
+                    self.diagnostics
+                        .emit_unexpected_token(token, "closing brace or identifier");
                     return None;
                 }
             };
@@ -312,7 +301,8 @@ impl<'i> Parser<'i> {
                 }
                 TokenKind::Colon => {}
                 _ => {
-                    diagnostics::emit_unexpected_token(self.db, token, "a question mark or colon");
+                    self.diagnostics
+                        .emit_unexpected_token(token, "a question mark or colon");
                     return None;
                 }
             };
@@ -341,7 +331,8 @@ impl<'i> Parser<'i> {
             TokenKind::Float32 => AnnotationFieldValue::Float32(token),
             TokenKind::Float64 => AnnotationFieldValue::Float64(token),
             _ => {
-                diagnostics::emit_unexpected_token(self.db, token, "a string or number type");
+                self.diagnostics
+                    .emit_unexpected_token(token, "a string or number type");
                 return None;
             }
         };
@@ -362,7 +353,8 @@ impl<'i> Parser<'i> {
         if token.kind == kind {
             Some(token)
         } else {
-            diagnostics::emit_unexpected_token(self.db, token, &format!("{kind}"));
+            self.diagnostics
+                .emit_unexpected_token(token, &format!("{kind}"));
             return None;
         }
     }

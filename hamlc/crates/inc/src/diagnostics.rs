@@ -6,6 +6,68 @@ use crate::{
 };
 use derive_new::new;
 
+#[derive(new, Copy, Clone)]
+pub struct DiagnosticEmitter<'db> {
+    db: &'db dyn Db,
+}
+
+impl<'db> DiagnosticEmitter<'db> {
+    pub fn emit_message(&self, message: &str) {
+        let diagnostic = Diagnostic::new(Level::Error, message.to_string(), None, None);
+        Diagnostics::push(self.db, diagnostic);
+    }
+
+    pub fn emit_unexpected_eof(&self, token: Token) {
+        let diagnostic = Diagnostic::new(
+            Level::Error,
+            format!("file ended unexpectedly when reading `{:?}`", token.kind),
+            Some(token.span),
+            Some("expected more code, but the file ended".to_string()),
+        );
+        Diagnostics::push(self.db, diagnostic);
+    }
+
+    pub fn emit_duplicate_identifier(&self, token: Token) {
+        let diagnostic = Diagnostic::new(
+            Level::Error,
+            format!("type `{:?}` defined multiple times", token.kind),
+            Some(token.span),
+            Some("there can only be one type with this name".to_string()),
+        );
+        Diagnostics::push(self.db, diagnostic);
+    }
+
+    pub fn emit_unexpected_token(&self, token: Token, expected: &str) {
+        let diagnostic = Diagnostic::new(
+            Level::Error,
+            format!("expected {expected} but found a {}", token.kind),
+            Some(token.span),
+            Some(format!("expected {expected}")),
+        );
+        Diagnostics::push(self.db, diagnostic);
+    }
+
+    pub fn emit_unterminated_comment(&self, token: Token) {
+        let diagnostic = Diagnostic::new(
+            Level::Error,
+            "found unterminated comment".to_string(),
+            Some(token.span),
+            Some(format!("this comment must be ended with a `*/` characters")),
+        );
+        Diagnostics::push(self.db, diagnostic);
+    }
+
+    pub fn emit_unterminated_string(&self, token: Token) {
+        let diagnostic = Diagnostic::new(
+            Level::Error,
+            "found unterminated string".to_string(),
+            Some(token.span),
+            Some("add a `\"` character".to_string()),
+        );
+        Diagnostics::push(self.db, diagnostic);
+    }
+}
+
 #[salsa::accumulator]
 pub struct Diagnostics(Diagnostic);
 
@@ -97,61 +159,6 @@ impl Diagnostic {
         .join("\n")
         .to_owned()
     }
-}
-
-pub fn emit_message(db: &dyn Db, message: &str) {
-    let diagnostic = Diagnostic::new(Level::Error, message.to_string(), None, None);
-    Diagnostics::push(db, diagnostic);
-}
-
-pub fn emit_unexpected_eof(db: &dyn Db, token: Token) {
-    let diagnostic = Diagnostic::new(
-        Level::Error,
-        format!("file ended unexpectedly when reading `{:?}`", token.kind),
-        Some(token.span),
-        Some("expected more code, but the file ended".to_string()),
-    );
-    Diagnostics::push(db, diagnostic);
-}
-
-pub fn emit_duplicate_identifier(db: &dyn Db, token: Token) {
-    let diagnostic = Diagnostic::new(
-        Level::Error,
-        format!("type `{:?}` defined multiple times", token.kind),
-        Some(token.span),
-        Some("there can only be one type with this name".to_string()),
-    );
-    Diagnostics::push(db, diagnostic);
-}
-
-pub fn emit_unexpected_token(db: &dyn Db, token: Token, expected: &str) {
-    let diagnostic = Diagnostic::new(
-        Level::Error,
-        format!("expected {expected} but found a {}", token.kind),
-        Some(token.span),
-        Some(format!("expected {expected}")),
-    );
-    Diagnostics::push(db, diagnostic);
-}
-
-pub fn emit_unterminated_comment(db: &dyn Db, token: Token) {
-    let diagnostic = Diagnostic::new(
-        Level::Error,
-        "found unterminated comment".to_string(),
-        Some(token.span),
-        Some(format!("this comment must be ended with a `*/` characters")),
-    );
-    Diagnostics::push(db, diagnostic);
-}
-
-pub fn emit_unterminated_string(db: &dyn Db, token: Token) {
-    let diagnostic = Diagnostic::new(
-        Level::Error,
-        "found unterminated string".to_string(),
-        Some(token.span),
-        Some("add a `\"` character".to_string()),
-    );
-    Diagnostics::push(db, diagnostic);
 }
 
 fn bold(value: &str) -> String {
