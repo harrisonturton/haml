@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::ast::Ast;
 use crate::diagnostics::DiagnosticEmitter;
 use crate::span::Span;
-use crate::syntax::{Lexer, ParseSession, Parser, Token};
+use crate::syntax::{ParseSession, Parser, Token};
 
 #[salsa::input]
 pub struct TrackedAst {

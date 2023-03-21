@@ -22,7 +22,7 @@ impl<'db> Lexer<'db> {
     }
 
     pub fn advance(&mut self) -> Option<Token> {
-        match self.bump()? {
+        match self.bump_ignore_whitespace()? {
             '"' => self.string_literal(),
             '0'..='9' => self.numeric_literal(),
             ch if is_id_head(ch) => self.ident_or_keyword(),
@@ -116,8 +116,12 @@ impl<'db> Lexer<'db> {
 
     fn eat_and_advance(&mut self, kind: TokenKind) -> Token {
         let span = self.span();
-        self.len_remaining = self.chars.as_str().len();
+        self.eat();
         Token::new(kind, span)
+    }
+
+    fn eat(&mut self) {
+        self.len_remaining = self.chars.as_str().len();
     }
 
     fn span(&self) -> Span {
@@ -135,28 +139,33 @@ impl<'db> Lexer<'db> {
     }
 
     fn peek(&mut self) -> Option<char> {
-        self.chars.clone().find(glyph)
+        self.chars.clone().next()
     }
 
     fn bump(&mut self) -> Option<char> {
-        self.chars.find(glyph)
+        self.chars.next()
     }
 
-    fn bump_while(&mut self, predicate: impl Fn(char) -> bool) -> bool {
-        loop {
-            match self.peek() {
-                Some(ch) if predicate(ch) => self.bump(),
-                None => return false,
-                _ => break,
-            };
+    fn bump_ignore_whitespace(&mut self) -> Option<char> {
+        while let Some(ch) = self.bump() {
+            if is_whitespace(ch) {
+                self.eat();
+                continue;
+            }
+            return Some(ch);
         }
-        true
+        None
     }
-}
 
-// Used to find the next significant character in the text
-fn glyph(ch: &char) -> bool {
-    ch.is_ascii_graphic()
+    fn bump_while(&mut self, predicate: impl Fn(char) -> bool) {
+        while let Some(ch) = self.peek() {
+            if predicate(ch) {
+                self.bump();
+            } else {
+                break;
+            }
+        }
+    }
 }
 
 // Check if `ch` is a number between 0 and 9
@@ -174,12 +183,6 @@ fn is_id_body(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_'
 }
 
-// ch if is_id_head(ch) => self.ident_or_keyword(),
-
-// fn numeric_literal(&self) -> Option<Token> {
-//     todo!()
-// }
-
-// fn ident_or_keyword(&self) -> Option<Token> {
-//     todo!()
-// }
+fn is_whitespace(ch: char) -> bool {
+    ch.is_ascii_whitespace()
+}

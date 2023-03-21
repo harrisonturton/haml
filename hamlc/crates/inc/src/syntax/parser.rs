@@ -32,7 +32,6 @@ impl<'db> ParseSession<'db> {
 
 /// Turns tokens into statements.
 pub struct Parser<'i> {
-    sess: &'i ParseSession<'i>,
     emitter: &'i dyn Emitter,
     lexer: Lexer<'i>,
 }
@@ -40,7 +39,6 @@ pub struct Parser<'i> {
 impl<'i> Parser<'i> {
     pub fn new(sess: &'i ParseSession<'i>, emitter: &'i dyn Emitter) -> Parser<'i> {
         Parser {
-            sess,
             emitter,
             lexer: Lexer::new(sess, emitter),
         }
