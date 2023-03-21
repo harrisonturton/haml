@@ -30,7 +30,7 @@ pub fn main() {
         }
     };
 
-    let ast = match parse_file(&db, file) {
+    let _ast = match parse_file(&db, file) {
         Some(ast) => ast,
         None => {
             let parse_file_errs = parse_file::accumulated::<Diagnostics>(&db, file);
@@ -41,5 +41,5 @@ pub fn main() {
         }
     };
 
-    println!("{ast:?}");
+    println!("Parsed file successfully");
 }

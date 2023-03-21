@@ -1,5 +1,7 @@
 use std::str::Chars;
 
+use crate::queries::SourceFile;
+use crate::span::Span;
 use crate::{diagnostics, Db};
 
 use super::token::TokenKind;
@@ -10,17 +12,18 @@ pub struct Lexer<'i> {
     pos: usize,
     len_remaining: usize,
     chars: Chars<'i>,
-    input: &'i str,
+    file: SourceFile,
     db: &'i dyn Db,
 }
 
 impl<'i> Lexer<'i> {
-    pub fn new(db: &'i dyn Db, input: &'i str) -> Lexer<'i> {
+    pub fn new(db: &'i dyn Db, file: SourceFile) -> Lexer<'i> {
+        let text = file.text(db);
         Lexer {
             pos: 0,
-            len_remaining: input.len(),
-            chars: input.chars(),
-            input,
+            len_remaining: text.len(),
+            chars: text.chars(),
+            file,
             db,
         }
     }
@@ -108,7 +111,8 @@ impl<'i> Lexer<'i> {
 
         let start = self.pos;
         let end = start + self.pos_within_token();
-        let span = &self.input[self.pos..end];
+        let text = self.file.text(self.db);
+        let span = &text[self.pos..end];
 
         let kind = match span {
             "import" => TokenKind::Import,
@@ -139,7 +143,7 @@ impl<'i> Lexer<'i> {
         let len = self.pos_within_token();
         self.reset_pos_within_token();
         self.pos += len;
-        Token::new(kind, start, len)
+        Token::new(kind, Span::new(start, len, self.file))
     }
 
     fn peek(&mut self) -> Option<char> {

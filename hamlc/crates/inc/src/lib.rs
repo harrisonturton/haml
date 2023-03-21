@@ -2,6 +2,7 @@ pub mod ast;
 pub mod db;
 pub mod diagnostics;
 pub mod queries;
+pub mod span;
 pub mod syntax;
 
 // The salsa database is defined in terms of jars. These store all the
@@ -11,8 +12,12 @@ pub struct Jar(
     crate::diagnostics::Diagnostics,
     crate::queries::Path,
     crate::queries::SourceFile,
+    crate::queries::TrackedAst,
+    crate::queries::TrackedSpan,
     crate::queries::read_file,
     crate::queries::parse_file,
+    crate::queries::build_symbol_table,
+    crate::queries::read_span,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> {}
