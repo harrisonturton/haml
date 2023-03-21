@@ -1,123 +1,57 @@
 use std::str::Chars;
 
-use crate::diagnostics::DiagnosticEmitter;
-use crate::queries::SourceFile;
-use crate::span::Span;
-use crate::Db;
+use crate::{diagnostics::Emitter, span::Span};
 
-use super::token::TokenKind;
-use super::Token;
+use super::{parser::ParseSession, Token, TokenKind};
 
-/// Turns strings into tokens.
-pub struct Lexer<'i> {
-    pos: usize,
+pub struct Lexer<'db> {
+    sess: &'db ParseSession<'db>,
+    emitter: &'db dyn Emitter,
+    chars: Chars<'db>,
     len_remaining: usize,
-    chars: Chars<'i>,
-    file: SourceFile,
-    diagnostics: DiagnosticEmitter<'i>,
-    db: &'i dyn Db,
 }
 
-impl<'i> Lexer<'i> {
-    pub fn new(diagnostics: DiagnosticEmitter<'i>, db: &'i dyn Db, file: SourceFile) -> Lexer<'i> {
-        let text = file.text(db);
+impl<'db> Lexer<'db> {
+    pub fn new(sess: &'db ParseSession<'db>, emitter: &'db dyn Emitter) -> Lexer<'db> {
         Lexer {
-            pos: 0,
-            len_remaining: text.len(),
-            chars: text.chars(),
-            file,
-            db,
-            diagnostics,
+            sess,
+            emitter,
+            chars: sess.text().chars(),
+            len_remaining: sess.text().len(),
         }
     }
 
     pub fn advance(&mut self) -> Option<Token> {
-        loop {
-            let ch = match self.bump() {
-                Some(ch) => ch,
-                None => return None,
-            };
-
-            let token = match ch {
-                ch if is_whitespace(ch) => {
-                    self.reset_pos_within_token();
-                    self.pos += 1;
-                    continue;
-                }
-                '(' => self.get_token_and_reset(TokenKind::OpenParen),
-                ')' => self.get_token_and_reset(TokenKind::CloseParen),
-                '{' => self.get_token_and_reset(TokenKind::OpenBrace),
-                '}' => self.get_token_and_reset(TokenKind::CloseBrace),
-                '<' => self.get_token_and_reset(TokenKind::OpenChevron),
-                '>' => self.get_token_and_reset(TokenKind::CloseChevron),
-                ':' => self.get_token_and_reset(TokenKind::Colon),
-                ';' => self.get_token_and_reset(TokenKind::Semi),
-                ',' => self.get_token_and_reset(TokenKind::Comma),
-                '@' => self.get_token_and_reset(TokenKind::At),
-                '.' => self.get_token_and_reset(TokenKind::Period),
-                '?' => self.get_token_and_reset(TokenKind::QuestionMark),
-                '"' => self.string_literal()?,
-                '0'..='9' => self.number_literal()?,
-                ch if is_id_head(ch) => self.ident_or_keyword(),
-                _ => self.get_token_and_reset(TokenKind::Invalid),
-            };
-
-            return Some(token);
+        match self.bump()? {
+            '"' => self.string_literal(),
+            '0'..='9' => self.numeric_literal(),
+            ch if is_id_head(ch) => self.ident_or_keyword(),
+            _ => self.reserved_char(),
         }
     }
 
-    /// Consume a series of characters into a string token
     fn string_literal(&mut self) -> Option<Token> {
-        while let Some(ch) = self.bump() {
-            if ch == '"' {
-                let token = self.get_token_and_reset(TokenKind::StringLiteral);
-                return Some(token);
-            }
-        }
-        let token = self.get_token_and_reset(TokenKind::StringLiteral);
-        self.diagnostics.emit_unterminated_string(token);
-        None
-    }
+        self.bump_while(|ch| ch != '"');
 
-    /// Consume a series of characters into a integer or float token
-    fn number_literal(&mut self) -> Option<Token> {
-        let terminated = self.eat_while(is_digit);
-        if terminated {
-            let token = self.get_token_and_reset(TokenKind::IntLiteral);
-            self.diagnostics.emit_unexpected_eof(token);
+        if let None = self.peek() {
+            let token = self.eat_and_advance(TokenKind::StringLiteral);
+            self.emitter.emit_unterminated_string(token);
             return None;
         }
 
-        let ch = match self.peek() {
-            Some(ch) => ch,
-            None => {
-                let token = self.get_token_and_reset(TokenKind::IntLiteral);
-                self.diagnostics.emit_unexpected_eof(token);
-                return None;
-            }
-        };
-
-        if ch == '.' {
-            self.bump();
-            self.eat_while(is_digit);
-            let token = self.get_token_and_reset(TokenKind::FloatLiteral);
-            return Some(token);
-        }
-
-        let token = self.get_token_and_reset(TokenKind::IntLiteral);
+        self.bump();
+        let token = self.eat_and_advance(TokenKind::StringLiteral);
         Some(token)
     }
 
-    /// Consume a series of characters into an identifier token
-    fn ident_or_keyword(&mut self) -> Token {
-        self.eat_while(is_id_body);
+    fn ident_or_keyword(&mut self) -> Option<Token> {
+        self.bump_while(is_id_body);
 
-        let start = self.pos;
-        let end = start + self.pos_within_token();
-        let text = self.file.text(self.db);
-        let span = &text[self.pos..end];
+        let span = self.span();
+        let text = self.sess.text();
+        let span_text = &text[span.start..span.end];
 
-        let kind = match span {
+        let kind = match span_text {
             "import" => TokenKind::Import,
             "package" => TokenKind::Package,
             "constructor" => TokenKind::Constructor,
@@ -138,40 +72,77 @@ impl<'i> Lexer<'i> {
             _ => TokenKind::Ident,
         };
 
-        self.get_token_and_reset(kind)
+        let token = self.eat_and_advance(kind);
+        Some(token)
     }
 
-    fn get_token_and_reset(&mut self, kind: TokenKind) -> Token {
-        let start = self.pos;
-        let len = self.pos_within_token();
-        self.reset_pos_within_token();
-        self.pos += len;
-        Token::new(kind, Span::new(start, len, self.file))
+    fn numeric_literal(&mut self) -> Option<Token> {
+        self.bump_while(is_digit);
+
+        if let Some('.') = self.peek() {
+            self.bump();
+            self.bump_while(is_digit);
+            let token = self.eat_and_advance(TokenKind::FloatLiteral);
+            return Some(token);
+        }
+
+        let token = self.eat_and_advance(TokenKind::IntLiteral);
+        Some(token)
+    }
+
+    fn reserved_char(&mut self) -> Option<Token> {
+        let span = self.span();
+        let text = self.sess.text();
+        let span_text = &text[span.start..span.end];
+
+        let kind = match span_text {
+            "(" => TokenKind::OpenParen,
+            ")" => TokenKind::CloseParen,
+            "{" => TokenKind::OpenBrace,
+            "}" => TokenKind::CloseBrace,
+            "<" => TokenKind::OpenChevron,
+            ">" => TokenKind::CloseChevron,
+            ":" => TokenKind::Colon,
+            ";" => TokenKind::Semi,
+            "," => TokenKind::Comma,
+            "@" => TokenKind::At,
+            "." => TokenKind::Period,
+            "?" => TokenKind::QuestionMark,
+            _ => TokenKind::Invalid,
+        };
+
+        Some(self.eat_and_advance(kind))
+    }
+
+    fn eat_and_advance(&mut self, kind: TokenKind) -> Token {
+        let span = self.span();
+        self.len_remaining = self.chars.as_str().len();
+        Token::new(kind, span)
+    }
+
+    fn span(&self) -> Span {
+        let start = self.token_start();
+        let end = self.token_end();
+        Span::new(start, end, self.sess.file)
+    }
+
+    fn token_start(&self) -> usize {
+        self.sess.text().len() - self.len_remaining
+    }
+
+    fn token_end(&self) -> usize {
+        self.sess.text().len() - self.chars.as_str().len()
     }
 
     fn peek(&mut self) -> Option<char> {
-        // `next` optimises better than `.nth(0)`
-        self.chars.clone().next()
+        self.chars.clone().find(glyph)
     }
 
-    /// Returns the number of already consumed symbols.
-    fn pos_within_token(&self) -> usize {
-        self.len_remaining - self.chars.as_str().len()
-    }
-
-    /// Resets the number of bytes consumed to be `0`.
-    fn reset_pos_within_token(&mut self) {
-        self.len_remaining = self.chars.as_str().len();
-    }
-
-    /// Move to the next character.
     fn bump(&mut self) -> Option<char> {
-        self.chars.next()
+        self.chars.find(glyph)
     }
 
-    /// Eat symbols while the predicate returns true or until end of file is
-    /// reached. Returns true if it terminates, false if it reaches EOF.
-    fn eat_while(&mut self, predicate: impl Fn(char) -> bool) -> bool {
+    fn bump_while(&mut self, predicate: impl Fn(char) -> bool) -> bool {
         loop {
             match self.peek() {
                 Some(ch) if predicate(ch) => self.bump(),
@@ -183,22 +154,32 @@ impl<'i> Lexer<'i> {
     }
 }
 
-/// Check if `ch` is Ascii whitespace or a control character
-fn is_whitespace(ch: char) -> bool {
-    ch.is_ascii_whitespace() || ch.is_ascii_control()
+// Used to find the next significant character in the text
+fn glyph(ch: &char) -> bool {
+    ch.is_ascii_graphic()
 }
 
-/// Check if `ch` is a number between 0 and 9
+// Check if `ch` is a number between 0 and 9
 fn is_digit(ch: char) -> bool {
     ch.is_ascii_digit()
 }
 
-/// Check if `ch` is a valid first letter of an identifier
+// Check if `ch` is a valid first letter of an identifier
 fn is_id_head(ch: char) -> bool {
-    ch.is_ascii_alphabetic() && !is_whitespace(ch)
+    ch.is_ascii_alphabetic() || ch == '_'
 }
 
 // Check if `ch` is a valid nth letter of an identifier
 fn is_id_body(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() && !is_whitespace(ch)
+    ch.is_ascii_alphanumeric() || ch == '_'
 }
+
+// ch if is_id_head(ch) => self.ident_or_keyword(),
+
+// fn numeric_literal(&self) -> Option<Token> {
+//     todo!()
+// }
+
+// fn ident_or_keyword(&self) -> Option<Token> {
+//     todo!()
+// }

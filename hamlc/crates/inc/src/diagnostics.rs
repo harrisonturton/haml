@@ -1,70 +1,79 @@
 use crate::{
     queries::{read_span, Path, SourceFile, TrackedSpan},
     span::Span,
-    syntax::Token,
+    syntax::{ParseSession, Token},
     Db,
 };
 use derive_new::new;
 
-#[derive(new, Copy, Clone)]
-pub struct DiagnosticEmitter<'db> {
-    db: &'db dyn Db,
+pub trait Emitter {
+    fn emit_message(&self, message: &str);
+    fn emit_unexpected_eof(&self, token: Token);
+    fn emit_duplicate_identifier(&self, token: Token);
+    fn emit_unexpected_token(&self, token: Token, expected: &str);
+    fn emit_unterminated_comment(&self, token: Token);
+    fn emit_unterminated_string(&self, token: Token);
 }
 
-impl<'db> DiagnosticEmitter<'db> {
-    pub fn emit_message(&self, message: &str) {
+#[derive(new, Copy, Clone)]
+pub struct DiagnosticEmitter<'db> {
+    sess: &'db ParseSession<'db>,
+}
+
+impl<'db> Emitter for DiagnosticEmitter<'db> {
+    fn emit_message(&self, message: &str) {
         let diagnostic = Diagnostic::new(Level::Error, message.to_string(), None, None);
-        Diagnostics::push(self.db, diagnostic);
+        Diagnostics::push(self.sess.db, diagnostic);
     }
 
-    pub fn emit_unexpected_eof(&self, token: Token) {
+    fn emit_unexpected_eof(&self, token: Token) {
         let diagnostic = Diagnostic::new(
             Level::Error,
             format!("file ended unexpectedly when reading `{:?}`", token.kind),
             Some(token.span),
             Some("expected more code, but the file ended".to_string()),
         );
-        Diagnostics::push(self.db, diagnostic);
+        Diagnostics::push(self.sess.db, diagnostic);
     }
 
-    pub fn emit_duplicate_identifier(&self, token: Token) {
+    fn emit_duplicate_identifier(&self, token: Token) {
         let diagnostic = Diagnostic::new(
             Level::Error,
             format!("type `{:?}` defined multiple times", token.kind),
             Some(token.span),
             Some("there can only be one type with this name".to_string()),
         );
-        Diagnostics::push(self.db, diagnostic);
+        Diagnostics::push(self.sess.db, diagnostic);
     }
 
-    pub fn emit_unexpected_token(&self, token: Token, expected: &str) {
+    fn emit_unexpected_token(&self, token: Token, expected: &str) {
         let diagnostic = Diagnostic::new(
             Level::Error,
             format!("expected {expected} but found a {}", token.kind),
             Some(token.span),
             Some(format!("expected {expected}")),
         );
-        Diagnostics::push(self.db, diagnostic);
+        Diagnostics::push(self.sess.db, diagnostic);
     }
 
-    pub fn emit_unterminated_comment(&self, token: Token) {
+    fn emit_unterminated_comment(&self, token: Token) {
         let diagnostic = Diagnostic::new(
             Level::Error,
             "found unterminated comment".to_string(),
             Some(token.span),
             Some(format!("this comment must be ended with a `*/` characters")),
         );
-        Diagnostics::push(self.db, diagnostic);
+        Diagnostics::push(self.sess.db, diagnostic);
     }
 
-    pub fn emit_unterminated_string(&self, token: Token) {
+    fn emit_unterminated_string(&self, token: Token) {
         let diagnostic = Diagnostic::new(
             Level::Error,
             "found unterminated string".to_string(),
             Some(token.span),
             Some("add a `\"` character".to_string()),
         );
-        Diagnostics::push(self.db, diagnostic);
+        Diagnostics::push(self.sess.db, diagnostic);
     }
 }
 

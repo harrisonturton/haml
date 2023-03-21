@@ -9,4 +9,3 @@ edition = "2021"
 clap = { version = "4.1.8", features = ["derive"] }
 salsa = { git = "https://github.com/salsa-rs/salsa.git", package = "salsa-2022" }
 derive-new = "0.5"
-core = { path = "../core" }

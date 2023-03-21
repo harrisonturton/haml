@@ -261,7 +261,6 @@ name = "inc"
 version = "0.1.0"
 dependencies = [
  "clap",
- "core",
  "derive-new",
  "salsa-2022",
 ]

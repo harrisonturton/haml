@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::ast::Ast;
 use crate::diagnostics::DiagnosticEmitter;
 use crate::span::Span;
-use crate::syntax::{Lexer, Parser, Token};
+use crate::syntax::{Lexer, ParseSession, Parser, Token};
 
 #[salsa::input]
 pub struct TrackedAst {
@@ -40,16 +40,16 @@ pub fn read_file(db: &dyn crate::Db, path: Path) -> Option<SourceFile> {
 /// Turn a file into an AST
 #[salsa::tracked]
 pub fn parse_file(db: &dyn crate::Db, file: SourceFile) -> Option<Ast> {
-    let diagnostics = DiagnosticEmitter::new(db);
-    let mut lexer = Lexer::new(diagnostics, db, file);
-    let mut parser = Parser::new(diagnostics, &mut lexer);
+    let sess = ParseSession::new(db, file);
+    let emitter = DiagnosticEmitter::new(&sess);
+    let mut parser = Parser::new(&sess, &emitter);
     parser.parse()
 }
 
 /// Turn a file into a symbol table of declared and imported symbols
 #[salsa::tracked]
 pub fn build_symbol_table(db: &dyn crate::Db, file: SourceFile) -> Option<Vec<Token>> {
-    let _ast = parse_file(db, file)?;
+    // let _ast = parse_file(db, file)?;
     // Iterate through imports and build their symbol tables. While walking, and
     // combining symbols from all tables, detect duplicate symbols.
     todo!()
@@ -61,5 +61,5 @@ pub fn read_span(db: &dyn crate::Db, path: Path, span: TrackedSpan) -> Option<St
     let span = span.span(db);
     let file = read_file(db, path)?;
     let text = file.text(db);
-    Some(text[span.start..span.start + span.len].to_string())
+    Some(text[span.start..span.end].to_string())
 }
