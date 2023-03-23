@@ -3,4 +3,5 @@ members = [
   "crates/cli",
   "crates/core",
 	"crates/server",
+	"crates/jsonrpc",
 ]

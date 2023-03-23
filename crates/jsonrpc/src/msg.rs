@@ -1,4 +1,3 @@
-use derive_new::new;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -37,7 +36,7 @@ pub enum Message {
     Notification(Notification),
 }
 
-#[derive(new, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum MessageId {
     I32(i32),
