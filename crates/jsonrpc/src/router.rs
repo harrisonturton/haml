@@ -59,7 +59,36 @@ where
     }
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
+    use serde_json::json;
+    use std::{cell::Cell, rc::Rc};
+
+    #[derive(Debug, Deserialize)]
+    pub struct GetFooRequest {
+        pub foo_id: String,
+    }
+
+    #[test]
+    fn test_calls_expected_method() {
+        // This flag is set by the callback. Since we need to mutate it inside
+        // the closure, and then check it again outside the closure, we need
+        // shared mutability.
+        let invoked_callback = Rc::new(Cell::new(false));
+
+        let handler_flag = invoked_callback.clone();
+        let handler = move |_req: GetFooRequest| {
+            handler_flag.clone().set(true);
+        };
+
+        let router = Router::new().register("getFoo", handler);
+
+        let params = json!({ "foo_id": "my-foo" });
+        let req = Request::new(1, "getFoo", params);
+        router.run("getFoo", req);
+
+        assert!(invoked_callback.get());
+    }
 }
