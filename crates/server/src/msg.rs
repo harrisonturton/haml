@@ -21,6 +21,12 @@ impl WireMessage {
         let body = Message::Response(response);
         WireMessage { jsonrpc, body }
     }
+
+    pub fn notification(notification: Notification) -> WireMessage {
+        let jsonrpc = "2.0".to_string();
+        let body = Message::Notification(notification);
+        WireMessage { jsonrpc, body }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -59,10 +65,10 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new<I, V>(id: I, method: &str, params: V) -> Request
+    pub fn new<I, P>(id: I, method: &str, params: P) -> Request
     where
         I: Into<MessageId>,
-        V: Into<Option<Value>>,
+        P: Into<Option<Value>>,
     {
         Request {
             id: id.into(),
@@ -129,10 +135,23 @@ impl Error {
     }
 }
 
-#[derive(new, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Notification {
     pub method: String,
-    pub params: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub params: Option<Value>,
+}
+
+impl Notification {
+    pub fn new<P>(method: &str, params: P) -> Notification
+    where
+        P: Into<Option<Value>>,
+    {
+        Notification {
+            method: method.to_owned(),
+            params: params.into(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -196,6 +215,28 @@ mod tests {
 
         let expected = r#"{"jsonrpc":"2.0","id":1,"method":"getFoo","error":{"code":100,"message":"failed","data":{"foo":"bar"}}}"#;
         let actual = serde_json::to_string(&msg)?;
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_notification_with_no_params_gives_expected_json() -> TestResult {
+        let notification = Notification::new("getFoo", None);
+        let msg = WireMessage::notification(notification);
+
+        let expected = r#"{"jsonrpc":"2.0","method":"getFoo"}"#;
+        let actual = serde_json::to_string(&msg)?;
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_notification_with_params_gives_expected_json() -> TestResult {
+        let notification = Notification::new("getFoo", json!({ "foo": "bar" }));
+        let msg = WireMessage::notification(notification);
+
+        let expected = r#"{"jsonrpc":"2.0","method":"getFoo","params":{"foo":"bar"}}"#;
+        let actual = serde_json::to_string(&msg).unwrap();
         assert_eq!(actual, expected);
         Ok(())
     }
