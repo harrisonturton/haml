@@ -1,5 +1,5 @@
 use crate::db::Database;
-use crate::syntax::{testing::support::TestContext, Token, TokenKind};
+use crate::syntax::{test::support::TestContext, Token, TokenKind};
 
 #[test]
 fn test_lexes_package_statement() {

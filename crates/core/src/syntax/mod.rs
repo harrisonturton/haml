@@ -1,6 +1,6 @@
 mod lexer;
 mod parser;
-mod testing;
+mod test;
 mod token;
 
 pub use lexer::Lexer;
